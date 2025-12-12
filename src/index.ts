@@ -1,4 +1,4 @@
-import { getSandbox } from '@cloudflare/sandbox';
+import { getSandbox } from "@cloudflare/sandbox";
 
 interface CmdOutput {
   success: boolean;
@@ -9,23 +9,23 @@ interface CmdOutput {
 const getOutput = (res: CmdOutput) => (res.success ? res.stdout : res.stderr);
 
 const EXTRA_SYSTEM =
-  'You are an automatic feature-implementer/bug-fixer.' +
-  'You apply all necessary changes to achieve the user request. You must ensure you DO NOT commit the changes, ' +
-  'so the pipeline can read the local `git diff` and apply the change upstream.';
+  "You are an automatic feature-implementer/bug-fixer." +
+  "You apply all necessary changes to achieve the user request. You must ensure you DO NOT commit the changes, " +
+  "so the pipeline can read the local `git diff` and apply the change upstream.";
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    if (request.method === 'POST') {
+    if (request.method === "POST") {
       try {
         const { repo, task } = await request.json<{
           repo?: string;
           task?: string;
         }>();
         if (!repo || !task)
-          return new Response('invalid body', { status: 400 });
+          return new Response("invalid body", { status: 400 });
 
         // get the repo name
-        const name = repo.split('/').pop() ?? 'tmp';
+        const name = repo.split("/").pop() ?? "tmp";
 
         // open sandbox
         const sandbox = getSandbox(
@@ -48,14 +48,14 @@ export default {
         )}" --permission-mode acceptEdits`;
 
         const logs = getOutput(await sandbox.exec(cmd));
-        const diff = getOutput(await sandbox.exec('git diff'));
+        const diff = getOutput(await sandbox.exec("git diff"));
         return Response.json({ logs, diff });
       } catch {
-        return new Response('invalid body', { status: 400 });
+        return new Response("invalid body", { status: 400 });
       }
     }
-    return new Response('not found');
-  }
+    return new Response("not found");
+  },
 };
 
-export { Sandbox } from '@cloudflare/sandbox';
+export { Sandbox } from "@cloudflare/sandbox";

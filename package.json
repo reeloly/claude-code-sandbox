@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.3.8",
     "@cloudflare/sandbox": "*",
     "@types/node": "^24.10.1",
     "typescript": "^5.9.3",

@@ -8,7 +8,7 @@
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
     "start": "wrangler dev",
-    "types": "wrangler types",
+    "cf-typegen": "wrangler types --env-interface CloudflareBindings",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
@@ -19,5 +19,12 @@
     "wrangler": "^4.54.0"
   },
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "@hono/clerk-auth": "^3.0.3",
+    "@hono/standard-validator": "^0.2.1",
+    "hono": "^4.11.1",
+    "hono-openapi": "^1.1.2",
+    "zod": "^4.1.13"
+  }
 }

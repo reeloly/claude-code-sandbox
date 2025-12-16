@@ -1,4 +1,8 @@
 import { getSandbox } from "@cloudflare/sandbox";
+import { clerkMiddleware } from "@hono/clerk-auth";
+import { Hono } from "hono";
+import { cors } from "hono/cors";
+import { messagesRoutes } from "./messages/messages.routes";
 
 interface CmdOutput {
   success: boolean;
@@ -13,49 +17,75 @@ const EXTRA_SYSTEM =
   "You apply all necessary changes to achieve the user request. You must ensure you DO NOT commit the changes, " +
   "so the pipeline can read the local `git diff` and apply the change upstream.";
 
-export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
-    if (request.method === "POST") {
-      try {
-        const { repo, task } = await request.json<{
-          repo?: string;
-          task?: string;
-        }>();
-        if (!repo || !task)
-          return new Response("invalid body", { status: 400 });
+const app = new Hono<{ Bindings: CloudflareBindings }>();
 
-        // get the repo name
-        const name = repo.split("/").pop() ?? "tmp";
+app.use(async (c, next) => {
+  const { CLERK_PUBLISHABLE_KEY, CLERK_SECRET_KEY } = c.env;
+  if (!CLERK_PUBLISHABLE_KEY || !CLERK_SECRET_KEY) {
+    return c.json(
+      { error: "CLERK_PUBLISHABLE_KEY and CLERK_SECRET_KEY are required" },
+      500
+    );
+  }
+  return clerkMiddleware({
+    publishableKey: CLERK_PUBLISHABLE_KEY,
+    secretKey: CLERK_SECRET_KEY,
+  })(c, next);
+});
 
-        // open sandbox
-        const sandbox = getSandbox(
-          env.Sandbox,
-          crypto.randomUUID().slice(0, 8)
-        );
+app.use(
+  cors({
+    origin: "http://localhost:3000",
+    credentials: true,
+  })
+);
 
-        // git clone repo
-        await sandbox.gitCheckout(repo, { targetDir: name });
+app.route("/messages", messagesRoutes);
 
-        const { ANTHROPIC_API_KEY } = env;
+// export default {
+//   async fetch(request: Request, env: CloudflareBindings): Promise<Response> {
+//     if (request.method === "POST") {
+//       try {
+//         const { repo, task } = await request.json<{
+//           repo?: string;
+//           task?: string;
+//         }>();
+//         if (!repo || !task)
+//           return new Response("invalid body", { status: 400 });
 
-        // Set env vars for the session
-        await sandbox.setEnvVars({ ANTHROPIC_API_KEY });
+//         // get the repo name
+//         const name = repo.split("/").pop() ?? "tmp";
 
-        // kick off CC with our query
-        const cmd = `cd ${name} && claude --append-system-prompt "${EXTRA_SYSTEM}" -p "${task.replaceAll(
-          '"',
-          '\\"'
-        )}" --permission-mode acceptEdits`;
+//         // open sandbox
+//         const sandbox = getSandbox(
+//           env.Sandbox,
+//           crypto.randomUUID().slice(0, 8)
+//         );
 
-        const logs = getOutput(await sandbox.exec(cmd));
-        const diff = getOutput(await sandbox.exec("git diff"));
-        return Response.json({ logs, diff });
-      } catch {
-        return new Response("invalid body", { status: 400 });
-      }
-    }
-    return new Response("not found");
-  },
-};
+//         // git clone repo
+//         await sandbox.gitCheckout(repo, { targetDir: name });
 
+//         const { ANTHROPIC_API_KEY } = env;
+
+//         // Set env vars for the session
+//         await sandbox.setEnvVars({ ANTHROPIC_API_KEY });
+
+//         // kick off CC with our query
+//         const cmd = `cd ${name} && claude --append-system-prompt "${EXTRA_SYSTEM}" -p "${task.replaceAll(
+//           '"',
+//           '\\"'
+//         )}" --permission-mode acceptEdits`;
+
+//         const logs = getOutput(await sandbox.exec(cmd));
+//         const diff = getOutput(await sandbox.exec("git diff"));
+//         return Response.json({ logs, diff });
+//       } catch {
+//         return new Response("invalid body", { status: 400 });
+//       }
+//     }
+//     return new Response("not found");
+//   },
+// };
+
+export default app;
 export { Sandbox } from "@cloudflare/sandbox";

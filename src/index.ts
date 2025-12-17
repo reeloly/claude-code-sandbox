@@ -33,12 +33,12 @@ app.use(async (c, next) => {
   })(c, next);
 });
 
-app.use(
-  cors({
-    origin: "http://localhost:3000",
+app.use(async (c, next) => {
+  return cors({
+    origin: c.env.ALLOWED_ORIGINS,
     credentials: true,
-  })
-);
+  })(c, next);
+});
 
 app.route("/messages", messagesRoutes);
 

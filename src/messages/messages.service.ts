@@ -95,8 +95,14 @@ export async function createMessage({
       git switch -C main || git checkout -B main
     fi
   `);
-  console.log("Copy code output:", getOutput(copyCodeOutput));
-  console.log("Checked out project code");
+  console.log({
+    message: "Copy code output",
+    output: getOutput(copyCodeOutput),
+  });
+  if (!copyCodeOutput.success) {
+    console.error("Failed to copy code to sandbox");
+    return;
+  }
 
   // checkout the agent code to sandbox local filesystem
   await sandbox.gitCheckout(env.AGENT_REPO_URL, { targetDir: "agent" });

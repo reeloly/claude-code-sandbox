@@ -1,8 +1,8 @@
 import {
   type ExecEvent,
-  type Sandbox,
   getSandbox,
   parseSSEStream,
+  type Sandbox,
 } from "@cloudflare/sandbox";
 import {
   BUNDLE_FILE_KEY,
@@ -44,7 +44,9 @@ async function copyCodeToSandbox(
   // Step 4: Check if repo already exists
   console.log(`Checking if repo exists: ${repoDir}`);
   const checkRepoResult = await sandbox.exec(
-    `[ -d ${JSON.stringify(repoDir)}/.git ] && echo "exists" || echo "not exists"`
+    `[ -d ${JSON.stringify(
+      repoDir
+    )}/.git ] && echo "exists" || echo "not exists"`
   );
   const repoExists = getOutput(checkRepoResult).trim() === "exists";
   console.log(`Repo exists: ${repoExists}`);
@@ -55,7 +57,9 @@ async function copyCodeToSandbox(
 
     console.log("Fetching from bundle...");
     const fetchResult = await sandbox.exec(
-      `cd ${JSON.stringify(repoDir)} && git fetch ${JSON.stringify(bundlePath)} 'refs/heads/*:refs/remotes/bundle/*'`
+      `cd ${JSON.stringify(repoDir)} && git fetch ${JSON.stringify(
+        bundlePath
+      )} 'refs/heads/*:refs/remotes/bundle/*'`
     );
     console.log("git fetch output:", getOutput(fetchResult));
 
@@ -92,7 +96,9 @@ async function copyCodeToSandbox(
 
     console.log("Ensuring main branch...");
     const ensureMainResult = await sandbox.exec(
-      `cd ${JSON.stringify(repoDir)} && (git switch -C main || git checkout -B main)`
+      `cd ${JSON.stringify(
+        repoDir
+      )} && (git switch -C main || git checkout -B main)`
     );
     console.log("git branch output:", getOutput(ensureMainResult));
   }
@@ -156,6 +162,7 @@ export async function createMessage({
   await copyCodeToSandbox(sandbox, projectId, projectR2Path);
 
   // checkout the agent code to sandbox local filesystem
+  await sandbox.exec("mkdir -p agent");
   await sandbox.gitCheckout(env.AGENT_REPO_URL, { targetDir: "agent" });
   await sandbox.exec(`cd agent && bun install`);
   // run agent with cwd set to the project directory and stream the response back to the client

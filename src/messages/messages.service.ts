@@ -8,6 +8,7 @@ import {
   getProjectR2Path,
   TEMPLATE_BUNDLE_FILE_KEY,
 } from "@/constants";
+import { getOutput } from "@/utils";
 import type { SseEventSender } from "./messages.utils";
 
 export async function createMessage({
@@ -39,6 +40,7 @@ export async function createMessage({
       secretAccessKey: env.REELLOLY_BUCKET_SECRET_ACCESS_KEY,
     },
   });
+  console.log("Mounted R2 bucket to sandbox");
   // ensure the bundle for the project exists in R2 bucket
   const projectR2Path = getProjectR2Path(userId, projectId, env.ENVIRONMENT);
   const projectBundleExists = await env.REELLOLY_BUCKET.head(
@@ -59,8 +61,9 @@ export async function createMessage({
       templateBundle.body
     );
   }
+  console.log("Ensured project bundle exists");
   // copy code to sandbox local filesystem
-  await sandbox.exec(`
+  const copyCodeOutput = await sandbox.exec(`
     set -euo pipefail
   
     PROJECT_ID=${JSON.stringify(projectId)}
@@ -92,6 +95,8 @@ export async function createMessage({
       git switch -C main || git checkout -B main
     fi
   `);
+  console.log("Copy code output:", getOutput(copyCodeOutput));
+  console.log("Checked out project code");
 
   // checkout the agent code to sandbox local filesystem
   await sandbox.gitCheckout(env.AGENT_REPO_URL, { targetDir: "agent" });

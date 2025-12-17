@@ -1,5 +1,6 @@
 import {
   type ExecEvent,
+  type Sandbox,
   getSandbox,
   parseSSEStream,
 } from "@cloudflare/sandbox";
@@ -10,6 +11,94 @@ import {
 } from "@/constants";
 import { getOutput } from "@/utils";
 import type { SseEventSender } from "./messages.utils";
+
+async function copyCodeToSandbox(
+  sandbox: Sandbox,
+  projectId: string,
+  projectR2Path: string
+): Promise<void> {
+  const rootDir = `/sandbox/${projectId}`;
+  const bundlePath = `${rootDir}/${BUNDLE_FILE_KEY}`;
+  const repoDir = `${rootDir}/project`;
+  const mountedBundlePath = `/mounted/${projectR2Path}/${BUNDLE_FILE_KEY}`;
+
+  // Step 1: Create root directory
+  console.log(`Creating root directory: ${rootDir}`);
+  const mkdirResult = await sandbox.exec(`mkdir -p ${JSON.stringify(rootDir)}`);
+  console.log("mkdir output:", getOutput(mkdirResult));
+
+  // Step 2: Copy bundle from mounted R2 to sandbox
+  console.log(`Copying bundle from ${mountedBundlePath} to ${bundlePath}`);
+  const cpResult = await sandbox.exec(
+    `cp ${JSON.stringify(mountedBundlePath)} ${JSON.stringify(bundlePath)}`
+  );
+  console.log("cp output:", getOutput(cpResult));
+
+  // Step 3: Verify git bundle
+  console.log(`Verifying git bundle: ${bundlePath}`);
+  const verifyResult = await sandbox.exec(
+    `git bundle verify ${JSON.stringify(bundlePath)}`
+  );
+  console.log("git bundle verify output:", getOutput(verifyResult));
+
+  // Step 4: Check if repo already exists
+  console.log(`Checking if repo exists: ${repoDir}`);
+  const checkRepoResult = await sandbox.exec(
+    `[ -d ${JSON.stringify(repoDir)}/.git ] && echo "exists" || echo "not exists"`
+  );
+  const repoExists = getOutput(checkRepoResult).trim() === "exists";
+  console.log(`Repo exists: ${repoExists}`);
+
+  if (repoExists) {
+    // Step 5a: Update existing repo
+    console.log("Updating existing repo from bundle");
+
+    console.log("Fetching from bundle...");
+    const fetchResult = await sandbox.exec(
+      `cd ${JSON.stringify(repoDir)} && git fetch ${JSON.stringify(bundlePath)} 'refs/heads/*:refs/remotes/bundle/*'`
+    );
+    console.log("git fetch output:", getOutput(fetchResult));
+
+    console.log("Switching to main branch...");
+    const switchResult = await sandbox.exec(
+      `cd ${JSON.stringify(repoDir)} && git switch -C main bundle/main`
+    );
+    console.log("git switch output:", getOutput(switchResult));
+
+    console.log("Resetting to bundle/main...");
+    const resetResult = await sandbox.exec(
+      `cd ${JSON.stringify(repoDir)} && git reset --hard bundle/main`
+    );
+    console.log("git reset output:", getOutput(resetResult));
+
+    console.log("Cleaning working directory...");
+    const cleanResult = await sandbox.exec(
+      `cd ${JSON.stringify(repoDir)} && git clean -fd`
+    );
+    console.log("git clean output:", getOutput(cleanResult));
+  } else {
+    // Step 5b: Clone fresh repo
+    console.log("Cloning fresh repo from bundle");
+
+    console.log("Removing existing directory if any...");
+    const rmResult = await sandbox.exec(`rm -rf ${JSON.stringify(repoDir)}`);
+    console.log("rm output:", getOutput(rmResult));
+
+    console.log("Cloning bundle...");
+    const cloneResult = await sandbox.exec(
+      `git clone ${JSON.stringify(bundlePath)} ${JSON.stringify(repoDir)}`
+    );
+    console.log("git clone output:", getOutput(cloneResult));
+
+    console.log("Ensuring main branch...");
+    const ensureMainResult = await sandbox.exec(
+      `cd ${JSON.stringify(repoDir)} && (git switch -C main || git checkout -B main)`
+    );
+    console.log("git branch output:", getOutput(ensureMainResult));
+  }
+
+  console.log("Successfully copied code to sandbox local filesystem");
+}
 
 export async function createMessage({
   userId,
@@ -62,58 +151,9 @@ export async function createMessage({
     );
   }
   console.log("Ensured project bundle exists");
+
   // copy code to sandbox local filesystem
-  const copyCodeOutputStream = await sandbox.execStream(`
-    set -euo pipefail
-  
-    PROJECT_ID=${JSON.stringify(projectId)}
-    R2_PATH=${JSON.stringify(projectR2Path)}
-    BUNDLE=${JSON.stringify(BUNDLE_FILE_KEY)}
-  
-    ROOT="/sandbox/$PROJECT_ID"
-    BUNDLE_PATH="$ROOT/$BUNDLE"
-    REPO="$ROOT/project"
-  
-    mkdir -p "$ROOT"
-    cp "/mounted/$R2_PATH/$BUNDLE" "$BUNDLE_PATH"
-  
-    # optional sanity check (recommended)
-    git bundle verify "$BUNDLE_PATH" >/dev/null
-  
-    if [ -d "$REPO/.git" ]; then
-      cd "$REPO"
-      # Update repo from the bundle
-      git fetch "$BUNDLE_PATH" 'refs/heads/*:refs/remotes/bundle/*'
-      # Force working tree to match bundle's main
-      git switch -C main bundle/main
-      git reset --hard bundle/main
-      git clean -fd
-    else
-      rm -rf "$REPO"
-      git clone "$BUNDLE_PATH" "$REPO"
-      cd "$REPO"
-      git switch -C main || git checkout -B main
-    fi
-  `);
-  for await (const event of parseSSEStream<ExecEvent>(copyCodeOutputStream)) {
-    switch (event.type) {
-      case "stdout":
-        console.log(event.data);
-        break;
-      case "stderr":
-        console.error(event.data);
-        break;
-      case "complete":
-        console.log("Exit code:", event.exitCode);
-        break;
-      case "error":
-        console.error("Failed:", event.error);
-        break;
-      default:
-        console.error("Unknown event type:", event.type);
-        break;
-    }
-  }
+  await copyCodeToSandbox(sandbox, projectId, projectR2Path);
 
   // checkout the agent code to sandbox local filesystem
   await sandbox.gitCheckout(env.AGENT_REPO_URL, { targetDir: "agent" });

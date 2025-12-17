@@ -63,7 +63,7 @@ export async function createMessage({
   }
   console.log("Ensured project bundle exists");
   // copy code to sandbox local filesystem
-  const copyCodeOutput = await sandbox.exec(`
+  const copyCodeOutputStream = await sandbox.execStream(`
     set -euo pipefail
   
     PROJECT_ID=${JSON.stringify(projectId)}
@@ -95,13 +95,24 @@ export async function createMessage({
       git switch -C main || git checkout -B main
     fi
   `);
-  console.log({
-    message: "Copy code output",
-    output: getOutput(copyCodeOutput),
-  });
-  if (!copyCodeOutput.success) {
-    console.error("Failed to copy code to sandbox");
-    return;
+  for await (const event of parseSSEStream<ExecEvent>(copyCodeOutputStream)) {
+    switch (event.type) {
+      case "stdout":
+        console.log(event.data);
+        break;
+      case "stderr":
+        console.error(event.data);
+        break;
+      case "complete":
+        console.log("Exit code:", event.exitCode);
+        break;
+      case "error":
+        console.error("Failed:", event.error);
+        break;
+      default:
+        console.error("Unknown event type:", event.type);
+        break;
+    }
   }
 
   // checkout the agent code to sandbox local filesystem

@@ -205,7 +205,14 @@ export async function createMessage({
         break;
 
       case "stderr":
-        console.error({ stderr: event.data, result: event.result });
+        console.error({
+          message: "stderr",
+          stderr: event.data,
+          result: event.result,
+          success: event.result?.success,
+          exitCode: event.exitCode,
+          error: event.error,
+        });
         break;
 
       case "complete":

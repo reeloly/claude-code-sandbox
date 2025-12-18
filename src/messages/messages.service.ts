@@ -131,8 +131,10 @@ export async function createMessage({
   // Set env vars for the session
   await sandbox.setEnvVars({ ANTHROPIC_API_KEY });
 
-  // mount the R2 bucket to sandbox
-  try {
+  // ensure the R2 bucket is mounted to sandbox
+  const mountedFiles = await sandbox.exists("/mounted");
+  console.log({ mountedFiles });
+  if (!mountedFiles.exists) {
     await sandbox.mountBucket(env.REELLOLY_BUCKET_NAME, "/mounted", {
       endpoint: `https://${env.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com`,
       credentials: {
@@ -140,19 +142,6 @@ export async function createMessage({
         secretAccessKey: env.REELLOLY_BUCKET_SECRET_ACCESS_KEY,
       },
     });
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      if (
-        error.name === "InvalidMountConfigError" ||
-        error.message?.includes("already in use")
-      ) {
-        console.log("R2 bucket already mounted, skipping");
-      } else {
-        throw error;
-      }
-    } else {
-      throw new Error("Failed to mount R2 bucket to sandbox");
-    }
   }
   console.log("Mounted R2 bucket to sandbox");
   // ensure the bundle for the project exists in R2 bucket

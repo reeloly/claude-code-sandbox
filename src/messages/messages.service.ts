@@ -17,23 +17,23 @@ async function copyCodeToSandbox(
   projectId: string,
   projectR2Path: string
 ): Promise<void> {
-  const rootDir = `/sandbox/${projectId}`;
-  const bundlePath = `${rootDir}/${BUNDLE_FILE_KEY}`;
-  const repoDir = `${rootDir}/project`;
-  const mountedBundlePath = `/mounted/${projectR2Path}/${BUNDLE_FILE_KEY}`;
+  const rootDir = `${JSON.stringify(`/sandbox/${projectId}`)}`;
+  const bundlePath = `${JSON.stringify(rootDir)}/${BUNDLE_FILE_KEY}`;
+  const repoDir = `${JSON.stringify(rootDir)}/project`;
+  const mountedBundlePath = `${JSON.stringify(
+    `/mounted/${projectR2Path}/${BUNDLE_FILE_KEY}`
+  )}`;
 
   // Step 1: Create root directory
   console.log(`Creating root directory: ${rootDir}`);
-  const mkdirResult = await sandbox.mkdir(JSON.stringify(rootDir), {
+  const mkdirResult = await sandbox.mkdir(rootDir, {
     recursive: true,
   });
-  console.log({ mkdirResult });
+  console.log({ message: "mkdirResult", ...mkdirResult });
 
   // Step 2: Copy bundle from mounted R2 to sandbox
   console.log(`Copying bundle from ${mountedBundlePath} to ${bundlePath}`);
-  const cpResult = await sandbox.exec(
-    `cp ${JSON.stringify(mountedBundlePath)} ${JSON.stringify(bundlePath)}`
-  );
+  const cpResult = await sandbox.exec(`cp ${mountedBundlePath} ${bundlePath}`);
   if (!cpResult.success) {
     console.error({
       message: "Failed to copy bundle from mounted R2 to sandbox",
@@ -46,9 +46,7 @@ async function copyCodeToSandbox(
 
   // Step 3: Verify git bundle
   console.log(`Verifying git bundle: ${bundlePath}`);
-  const verifyResult = await sandbox.exec(
-    `git bundle verify ${JSON.stringify(bundlePath)}`
-  );
+  const verifyResult = await sandbox.exec(`git bundle verify ${bundlePath}`);
   if (!verifyResult.success) {
     console.error({
       message: "Failed to verify git bundle",
@@ -62,9 +60,7 @@ async function copyCodeToSandbox(
   // Step 4: Check if repo already exists
   console.log(`Checking if repo exists: ${repoDir}`);
   const checkRepoResult = await sandbox.exec(
-    `[ -d ${JSON.stringify(
-      repoDir
-    )}/.git ] && echo "exists" || echo "not exists"`
+    `[ -d ${repoDir}/.git ] && echo "exists" || echo "not exists"`
   );
   const repoExists = getOutput(checkRepoResult).trim() === "exists";
   console.log(`Repo exists: ${repoExists}`);

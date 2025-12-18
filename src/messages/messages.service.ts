@@ -35,7 +35,7 @@ async function copyCodeToSandbox(
     recursive: true,
   });
   const cpResult = await sandbox.exec(
-    `cp ${JSON.stringify(mountedBundlePath)} ${JSON.stringify(bundlePath)}`
+    `cp ${JSON.stringify(mountedBundlePath)} ${JSON.stringify(rootDir)}`
   );
   if (!cpResult.success) {
     console.error({

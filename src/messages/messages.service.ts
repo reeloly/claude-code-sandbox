@@ -31,14 +31,19 @@ async function copyCodeToSandbox(
 
   // Step 2: Copy bundle from mounted R2 to sandbox
   console.log(`Copying bundle from ${mountedBundlePath} to ${bundlePath}`);
-  await sandbox.mkdir(JSON.stringify(bundlePath), {
+  await sandbox.mkdir(JSON.stringify(rootDir), {
     recursive: true,
   });
   const cpResult = await sandbox.exec(
     `cp ${JSON.stringify(mountedBundlePath)} ${JSON.stringify(bundlePath)}`
   );
   if (!cpResult.success) {
-    console.error("Failed to copy bundle from mounted R2 to sandbox", cpResult);
+    console.error({
+      message: "Failed to copy bundle from mounted R2 to sandbox",
+      stdout: cpResult.stdout,
+      stderr: cpResult.stderr,
+      success: cpResult.success,
+    });
     throw new Error("Failed to copy bundle from mounted R2 to sandbox");
   }
 
@@ -48,7 +53,12 @@ async function copyCodeToSandbox(
     `git bundle verify ${JSON.stringify(bundlePath)}`
   );
   if (!verifyResult.success) {
-    console.error("Failed to verify git bundle", verifyResult);
+    console.error({
+      message: "Failed to verify git bundle",
+      stdout: verifyResult.stdout,
+      stderr: verifyResult.stderr,
+      success: verifyResult.success,
+    });
     throw new Error("Failed to verify git bundle");
   }
 

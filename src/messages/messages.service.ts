@@ -31,6 +31,9 @@ async function copyCodeToSandbox(
 
   // Step 2: Copy bundle from mounted R2 to sandbox
   console.log(`Copying bundle from ${mountedBundlePath} to ${bundlePath}`);
+  await sandbox.mkdir(JSON.stringify(bundlePath), {
+    recursive: true,
+  });
   const cpResult = await sandbox.exec(
     `cp ${JSON.stringify(mountedBundlePath)} ${JSON.stringify(bundlePath)}`
   );

@@ -1,16 +1,7 @@
-import { getSandbox } from "@cloudflare/sandbox";
 import { clerkMiddleware } from "@hono/clerk-auth";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { messagesRoutes } from "./messages/messages.routes";
-
-interface CmdOutput {
-  success: boolean;
-  stdout: string;
-  stderr: string;
-}
-// helper to read the outputs from `.exec` results
-const getOutput = (res: CmdOutput) => (res.success ? res.stdout : res.stderr);
 
 const EXTRA_SYSTEM =
   "You are an automatic feature-implementer/bug-fixer." +

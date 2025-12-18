@@ -46,14 +46,7 @@ async function copyCodeToSandbox(
     throw new Error("Failed to copy bundle from mounted R2 to sandbox");
   }
 
-  // Step 3: Verify git bundle
-  console.log(`Cloning git bundle: ${bundlePath}`);
-  const cloneResult = await sandbox.gitCheckout(bundlePath, {
-    targetDir: repoDir,
-  });
-  console.log({ message: "cloneResult", ...cloneResult });
-
-  // Step 4: Check if repo already exists
+  // Step 3: Check if repo already exists
   console.log(`Checking if repo exists: ${repoDir}`);
   const checkRepoResult = await sandbox.exec(
     `[ -d ${repoDir}/.git ] && echo "exists" || echo "not exists"`
@@ -62,53 +55,47 @@ async function copyCodeToSandbox(
   console.log(`Repo exists: ${repoExists}`);
 
   if (repoExists) {
-    // Step 5a: Update existing repo
+    // Step 4a: Update existing repo
     console.log("Updating existing repo from bundle");
 
     console.log("Fetching from bundle...");
     const fetchResult = await sandbox.exec(
-      `cd ${JSON.stringify(repoDir)} && git fetch ${JSON.stringify(
-        bundlePath
-      )} 'refs/heads/*:refs/remotes/bundle/*'`
+      `cd ${repoDir} && git fetch ${bundlePath} 'refs/heads/*:refs/remotes/bundle/*'`
     );
     console.log("git fetch output:", getOutput(fetchResult));
 
     console.log("Switching to main branch...");
     const switchResult = await sandbox.exec(
-      `cd ${JSON.stringify(repoDir)} && git switch -C main bundle/main`
+      `cd ${repoDir} && git switch -C main bundle/main`
     );
     console.log("git switch output:", getOutput(switchResult));
 
     console.log("Resetting to bundle/main...");
     const resetResult = await sandbox.exec(
-      `cd ${JSON.stringify(repoDir)} && git reset --hard bundle/main`
+      `cd ${repoDir} && git reset --hard bundle/main`
     );
     console.log("git reset output:", getOutput(resetResult));
 
     console.log("Cleaning working directory...");
-    const cleanResult = await sandbox.exec(
-      `cd ${JSON.stringify(repoDir)} && git clean -fd`
-    );
+    const cleanResult = await sandbox.exec(`cd ${repoDir} && git clean -fd`);
     console.log("git clean output:", getOutput(cleanResult));
   } else {
-    // Step 5b: Clone fresh repo
+    // Step 4b: Clone fresh repo
     console.log("Cloning fresh repo from bundle");
 
     console.log("Removing existing directory if any...");
-    const rmResult = await sandbox.exec(`rm -rf ${JSON.stringify(repoDir)}`);
+    const rmResult = await sandbox.exec(`rm -rf ${repoDir}`);
     console.log("rm output:", getOutput(rmResult));
 
     console.log("Cloning bundle...");
     const cloneResult = await sandbox.exec(
-      `git clone ${JSON.stringify(bundlePath)} ${JSON.stringify(repoDir)}`
+      `git clone ${bundlePath} ${repoDir}`
     );
     console.log("git clone output:", getOutput(cloneResult));
 
     console.log("Ensuring main branch...");
     const ensureMainResult = await sandbox.exec(
-      `cd ${JSON.stringify(
-        repoDir
-      )} && (git switch -C main || git checkout -B main)`
+      `cd ${repoDir} && (git switch -C main || git checkout -B main)`
     );
     console.log("git branch output:", getOutput(ensureMainResult));
   }

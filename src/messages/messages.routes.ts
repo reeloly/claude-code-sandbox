@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { getCookie, setCookie } from "hono/cookie";
 import { streamSSE } from "hono/streaming";
 import { validator as zValidator } from "hono-openapi";
 import z from "zod";
@@ -30,8 +31,22 @@ messagesRoutes.post("/", authMiddleware, validator, async (c) => {
   const userId = c.get("userId");
   const env = c.env;
 
+  let recentSandboxName = getCookie(c, "recentSandboxName");
+  if (!recentSandboxName) {
+    console.log("No recent sandbox name found, creating new one");
+    recentSandboxName = crypto.randomUUID();
+  }
+  setCookie(c, "recentSandboxName", recentSandboxName);
+
   return streamSSE(c, async (stream) => {
     const sender = new HonoSSESender(stream);
-    await createMessage({ userId, message, sender, projectId, env });
+    await createMessage({
+      userId,
+      message,
+      projectId,
+      recentSandboxName,
+      sender,
+      env,
+    });
   });
 });

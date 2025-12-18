@@ -24,8 +24,10 @@ async function copyCodeToSandbox(
 
   // Step 1: Create root directory
   console.log(`Creating root directory: ${rootDir}`);
-  const mkdirResult = await sandbox.exec(`mkdir -p ${JSON.stringify(rootDir)}`);
-  console.log("mkdir output:", getOutput(mkdirResult));
+  const mkdirResult = await sandbox.mkdir(JSON.stringify(rootDir), {
+    recursive: true,
+  });
+  console.log({ mkdirResult });
 
   // Step 2: Copy bundle from mounted R2 to sandbox
   console.log(`Copying bundle from ${mountedBundlePath} to ${bundlePath}`);
@@ -110,17 +112,19 @@ export async function createMessage({
   userId,
   message,
   projectId,
+  recentSandboxName,
   sender,
   env,
 }: {
   userId: string;
   message: string;
   projectId: string;
+  recentSandboxName: string;
   sender: SseEventSender;
   env: CloudflareBindings;
 }): Promise<void> {
   // open sandbox
-  const sandbox = getSandbox(env.Sandbox, crypto.randomUUID().slice(0, 8));
+  const sandbox = getSandbox(env.Sandbox, recentSandboxName);
 
   const { ANTHROPIC_API_KEY } = env;
 

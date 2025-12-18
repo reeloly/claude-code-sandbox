@@ -168,20 +168,20 @@ export async function createMessage({
   await copyCodeToSandbox(sandbox, projectId, projectR2Path);
 
   // checkout the agent code to sandbox local filesystem
-  await sandbox.exec("mkdir -p /sandbox/agent");
+  await sandbox.exec("mkdir -p /workspace/agent");
   console.log("ensured agent directory exists");
   await sandbox.gitCheckout(env.AGENT_REPO_URL, {
-    targetDir: "/sandbox/agent",
+    targetDir: "/workspace/agent",
   });
   console.log("checked out agent code");
-  await sandbox.exec(`cd /sandbox/agent && bun install`);
+  await sandbox.exec(`cd /workspace/agent && bun install`);
   console.log("installed agent dependencies");
   // run agent with cwd set to the project directory and stream the response back to the client
   // Use shell variables with JSON.stringify to safely escape user input and prevent shell injection
   const stream = await sandbox.execStream(
     `MESSAGE=${JSON.stringify(message)} PROJECT_ID=${JSON.stringify(
       projectId
-    )} && cd /sandbox/agent && bun run start "$MESSAGE" --cwd /sandbox/"$PROJECT_ID"/project`
+    )} && cd /workspace/agent && bun run start "$MESSAGE" --cwd /workspace/"$PROJECT_ID"/project`
   );
   for await (const event of parseSSEStream<ExecEvent>(stream)) {
     switch (event.type) {

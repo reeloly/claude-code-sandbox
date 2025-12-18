@@ -31,9 +31,6 @@ async function copyCodeToSandbox(
 
   // Step 2: Copy bundle from mounted R2 to sandbox
   console.log(`Copying bundle from ${mountedBundlePath} to ${bundlePath}`);
-  await sandbox.mkdir(JSON.stringify(rootDir), {
-    recursive: true,
-  });
   const cpResult = await sandbox.exec(
     `cp ${JSON.stringify(mountedBundlePath)} ${JSON.stringify(bundlePath)}`
   );
@@ -144,6 +141,11 @@ export async function createMessage({
 }): Promise<void> {
   // open sandbox
   const sandbox = getSandbox(env.Sandbox, recentSandboxName);
+  try {
+    await sandbox.getSession("user-123");
+  } catch (error) {
+    console.error("Failed to get session", error);
+  }
 
   const { ANTHROPIC_API_KEY } = env;
 

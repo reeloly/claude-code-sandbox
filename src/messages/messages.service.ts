@@ -37,14 +37,20 @@ async function copyCodeToSandbox(
   const cpResult = await sandbox.exec(
     `cp ${JSON.stringify(mountedBundlePath)} ${JSON.stringify(bundlePath)}`
   );
-  console.log("cp output:", getOutput(cpResult));
+  if (!cpResult.success) {
+    console.error("Failed to copy bundle from mounted R2 to sandbox", cpResult);
+    throw new Error("Failed to copy bundle from mounted R2 to sandbox");
+  }
 
   // Step 3: Verify git bundle
   console.log(`Verifying git bundle: ${bundlePath}`);
   const verifyResult = await sandbox.exec(
     `git bundle verify ${JSON.stringify(bundlePath)}`
   );
-  console.log("git bundle verify output:", getOutput(verifyResult));
+  if (!verifyResult.success) {
+    console.error("Failed to verify git bundle", verifyResult);
+    throw new Error("Failed to verify git bundle");
+  }
 
   // Step 4: Check if repo already exists
   console.log(`Checking if repo exists: ${repoDir}`);

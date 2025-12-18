@@ -199,7 +199,7 @@ export async function createMessage({
   for await (const event of parseSSEStream<ExecEvent>(stream)) {
     switch (event.type) {
       case "stdout":
-        console.log(event.data);
+        console.log({ stdout: event.data });
         await sender.sendEvent({
           id: crypto.randomUUID(),
           message: {
@@ -210,7 +210,7 @@ export async function createMessage({
         break;
 
       case "stderr":
-        console.error(event.data);
+        console.error({ stderr: event.data, result: event.result });
         break;
 
       case "complete":

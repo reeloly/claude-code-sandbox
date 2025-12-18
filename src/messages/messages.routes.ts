@@ -38,6 +38,13 @@ messagesRoutes.post("/", authMiddleware, validator, async (c) => {
   }
   setCookie(c, "recentSandboxName", recentSandboxName);
 
+  console.log({
+    message: "Creating message",
+    userId,
+    task: message,
+    projectId,
+    recentSandboxName,
+  });
   return streamSSE(c, async (stream) => {
     const sender = new HonoSSESender(stream);
     await createMessage({

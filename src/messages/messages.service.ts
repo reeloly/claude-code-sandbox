@@ -17,11 +17,11 @@ async function copyCodeToSandbox(
   projectId: string,
   projectR2Path: string
 ): Promise<void> {
-  const rootDir = `${JSON.stringify(`/sandbox/${projectId}`)}`;
+  const rootDir = `${JSON.stringify(`/workspace/${projectId}`)}`;
   const bundlePath = `${JSON.stringify(
-    `/sandbox/${projectId}/${BUNDLE_FILE_KEY}`
+    `/workspace/${projectId}/${BUNDLE_FILE_KEY}`
   )}`;
-  const repoDir = `${JSON.stringify(`/sandbox/${projectId}/project`)}`;
+  const repoDir = `${JSON.stringify(`/workspace/${projectId}/project`)}`;
   const mountedBundlePath = `${JSON.stringify(
     `/mounted/${projectR2Path}/${BUNDLE_FILE_KEY}`
   )}`;
@@ -34,7 +34,7 @@ async function copyCodeToSandbox(
   console.log({ message: "mkdirResult", ...mkdirResult });
 
   // Step 2: Copy bundle from mounted R2 to sandbox
-  console.log(`Copying bundle from ${mountedBundlePath} to ${bundlePath}`);
+  console.log(`Executing: cp ${mountedBundlePath} ${bundlePath}`);
   const cpResult = await sandbox.exec(`cp ${mountedBundlePath} ${bundlePath}`);
   if (!cpResult.success) {
     console.error({

@@ -45,17 +45,11 @@ async function copyCodeToSandbox(
   }
 
   // Step 3: Verify git bundle
-  console.log(`Verifying git bundle: ${bundlePath}`);
-  const verifyResult = await sandbox.exec(`git bundle verify ${bundlePath}`);
-  if (!verifyResult.success) {
-    console.error({
-      message: "Failed to verify git bundle",
-      stdout: verifyResult.stdout,
-      stderr: verifyResult.stderr,
-      success: verifyResult.success,
-    });
-    throw new Error("Failed to verify git bundle");
-  }
+  console.log(`Cloning git bundle: ${bundlePath}`);
+  const cloneResult = await sandbox.gitCheckout(bundlePath, {
+    targetDir: repoDir,
+  });
+  console.log({ message: "cloneResult", ...cloneResult });
 
   // Step 4: Check if repo already exists
   console.log(`Checking if repo exists: ${repoDir}`);

@@ -168,14 +168,23 @@ export async function createMessage({
   await copyCodeToSandbox(sandbox, projectId, projectR2Path);
 
   // checkout the agent code to sandbox local filesystem
-  await sandbox.exec("mkdir -p /workspace/agent");
-  console.log("ensured agent directory exists");
-  await sandbox.gitCheckout(env.AGENT_REPO_URL, {
-    targetDir: "/workspace/agent",
-  });
-  console.log("checked out agent code");
-  await sandbox.exec(`cd /workspace/agent && bun install`);
-  console.log("installed agent dependencies");
+  const agentDirExists = await sandbox.exists("/workspace/agent");
+  if (!agentDirExists.exists) {
+    await sandbox.exec("mkdir -p /workspace/agent");
+    console.log("ensured agent directory exists");
+    await sandbox.gitCheckout(env.AGENT_REPO_URL, {
+      targetDir: "/workspace/agent",
+    });
+    console.log("checked out agent code");
+    await sandbox.exec(`cd /workspace/agent && bun install`);
+    console.log("installed agent dependencies");
+  } else {
+    console.log("agent directory already exists");
+    await sandbox.exec(`cd /workspace/agent && git pull`);
+    console.log("pulled latest agent code");
+    await sandbox.exec(`cd /workspace/agent && bun install`);
+    console.log("installed agent dependencies");
+  }
   // run agent with cwd set to the project directory and stream the response back to the client
   // Use shell variables with JSON.stringify to safely escape user input and prevent shell injection
   const stream = await sandbox.execStream(
@@ -186,7 +195,6 @@ export async function createMessage({
   for await (const event of parseSSEStream<ExecEvent>(stream)) {
     switch (event.type) {
       case "stdout":
-        console.log({ stdout: event.data });
         await sender.sendEvent({
           id: crypto.randomUUID(),
           message: {

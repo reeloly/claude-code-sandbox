@@ -175,7 +175,7 @@ export async function createMessage({
   const stream = await sandbox.execStream(
     `MESSAGE=${JSON.stringify(message)} PROJECT_ID=${JSON.stringify(
       projectId
-    )} && cd agent && bun run start "$MESSAGE" --cwd /sandbox/"$PROJECT_ID"/project`
+    )} && cd /sandbox/agent && bun run start "$MESSAGE" --cwd /sandbox/"$PROJECT_ID"/project`
   );
   for await (const event of parseSSEStream<ExecEvent>(stream)) {
     switch (event.type) {

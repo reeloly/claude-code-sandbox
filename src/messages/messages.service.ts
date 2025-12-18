@@ -26,16 +26,13 @@ async function copyCodeToSandbox(
     `/mounted/${projectR2Path}/${BUNDLE_FILE_KEY}`
   )}`;
 
-  // Step 1: Create root directory
-  console.log(`Creating root directory: ${rootDir}`);
-  const mkdirResult = await sandbox.mkdir(rootDir, {
-    recursive: true,
-  });
-  console.log({ message: "mkdirResult", ...mkdirResult });
-
-  // Step 2: Copy bundle from mounted R2 to sandbox
-  console.log(`Executing: cp ${mountedBundlePath} ${bundlePath}`);
-  const cpResult = await sandbox.exec(`cp ${mountedBundlePath} ${bundlePath}`);
+  // Step 1: Copy bundle from mounted R2 to sandbox
+  console.log(
+    `Executing: mkdir -p ${rootDir} && cp ${mountedBundlePath} ${bundlePath}`
+  );
+  const cpResult = await sandbox.exec(
+    `mkdir -p ${rootDir} && cp ${mountedBundlePath} ${bundlePath}`
+  );
   if (!cpResult.success) {
     console.error({
       message: "Failed to copy bundle from mounted R2 to sandbox",
@@ -46,7 +43,7 @@ async function copyCodeToSandbox(
     throw new Error("Failed to copy bundle from mounted R2 to sandbox");
   }
 
-  // Step 3: Check if repo already exists
+  // Step 2: Check if repo already exists
   console.log(`Checking if repo exists: ${repoDir}`);
   const checkRepoResult = await sandbox.exec(
     `[ -d ${repoDir}/.git ] && echo "exists" || echo "not exists"`
@@ -55,7 +52,7 @@ async function copyCodeToSandbox(
   console.log(`Repo exists: ${repoExists}`);
 
   if (repoExists) {
-    // Step 4a: Update existing repo
+    // Step 3a: Update existing repo
     console.log("Updating existing repo from bundle");
 
     console.log("Fetching from bundle...");
@@ -80,7 +77,7 @@ async function copyCodeToSandbox(
     const cleanResult = await sandbox.exec(`cd ${repoDir} && git clean -fd`);
     console.log("git clean output:", getOutput(cleanResult));
   } else {
-    // Step 4b: Clone fresh repo
+    // Step 3b: Clone fresh repo
     console.log("Cloning fresh repo from bundle");
 
     console.log("Removing existing directory if any...");

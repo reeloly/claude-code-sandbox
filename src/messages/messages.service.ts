@@ -18,8 +18,10 @@ async function copyCodeToSandbox(
   projectR2Path: string
 ): Promise<void> {
   const rootDir = `${JSON.stringify(`/sandbox/${projectId}`)}`;
-  const bundlePath = `${JSON.stringify(rootDir)}/${BUNDLE_FILE_KEY}`;
-  const repoDir = `${JSON.stringify(rootDir)}/project`;
+  const bundlePath = `${JSON.stringify(
+    `/sandbox/${projectId}/${BUNDLE_FILE_KEY}`
+  )}`;
+  const repoDir = `${JSON.stringify(`/sandbox/${projectId}/project`)}`;
   const mountedBundlePath = `${JSON.stringify(
     `/mounted/${projectR2Path}/${BUNDLE_FILE_KEY}`
   )}`;

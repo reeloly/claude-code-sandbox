@@ -132,7 +132,8 @@ export async function createMessage({
   // open sandbox
   const sandbox = getSandbox(env.Sandbox, recentSandboxName);
   try {
-    await sandbox.getSession("user-123");
+    const session = await sandbox.getSession("user-123");
+    console.log({ message: "session", ...session });
   } catch (error) {
     console.error("Failed to get session", error);
   }

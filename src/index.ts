@@ -1,7 +1,10 @@
+import { proxyToSandbox } from "@cloudflare/sandbox";
 import { clerkMiddleware } from "@hono/clerk-auth";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { messagesRoutes } from "./messages/messages.routes";
+import { authMiddleware } from "./middleware/auth";
+import { sandboxRoutes } from "./sandbox/sandbox.routes";
 
 const EXTRA_SYSTEM =
   "You are an automatic feature-implementer/bug-fixer." +
@@ -31,7 +34,19 @@ app.use(async (c, next) => {
   })(c, next);
 });
 
-app.route("/messages", messagesRoutes);
+app.route("/_messages", messagesRoutes);
+app.route("/_sandbox", sandboxRoutes);
+
+app.get("*", async (c) => {
+  const proxyResponse = await proxyToSandbox(c.req.raw, c.env);
+
+  // If the sandbox proxy has a response, return it immediately
+  if (proxyResponse) {
+    return proxyResponse;
+  }
+
+  return c.json({ message: "Sandbox not found" }, 404);
+});
 
 // export default {
 //   async fetch(request: Request, env: CloudflareBindings): Promise<Response> {

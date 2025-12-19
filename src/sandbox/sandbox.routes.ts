@@ -1,18 +1,43 @@
 import { getSandbox, proxyToSandbox } from "@cloudflare/sandbox";
 import { Hono } from "hono";
-import { validator as zValidator } from "hono-openapi";
+import { describeRoute, resolver, validator as zValidator } from "hono-openapi";
 import z from "zod";
 
 export const sandboxRoutes = new Hono<{ Bindings: CloudflareBindings }>();
 
-sandboxRoutes.get("/status", async (c) => {
-  const proxyResponse = await proxyToSandbox(c.req.raw, c.env);
-
-  if (proxyResponse) {
-    return c.json({ message: "Sandbox is running" });
-  }
-  return c.json({ message: "Sandbox is not running" });
+const statusResponseSchema = z.object({
+  isWarm: z.boolean(),
+  previewUrl: z.string().optional(),
+  error: z.string().optional(),
 });
+
+sandboxRoutes.get(
+  "/status",
+  describeRoute({
+    responses: {
+      200: {
+        description: "Sandbox status",
+        content: {
+          "application/json": {
+            schema: resolver(statusResponseSchema),
+          },
+        },
+      },
+    },
+  }),
+  async (c) => {
+    const proxyResponse = await proxyToSandbox(c.req.raw, c.env);
+
+    if (proxyResponse) {
+      const response = { isWarm: true, previewUrl: proxyResponse.url };
+      statusResponseSchema.parse(response);
+      return c.json(response, 200);
+    }
+    const response = { isWarm: false, error: "Sandbox is not running" };
+    statusResponseSchema.parse(response);
+    return c.json(response, 200);
+  }
+);
 
 const validator = zValidator(
   "json",

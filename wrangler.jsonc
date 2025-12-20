@@ -93,6 +93,10 @@
       {
         "class_name": "Sandbox",
         "name": "Sandbox"
+      },
+      {
+        "class_name": "SandboxLock",
+        "name": "SandboxLock"
       }
     ]
   },

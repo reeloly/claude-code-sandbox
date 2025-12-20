@@ -31,8 +31,6 @@ fi
     bun install
 
     echo "Starting server and holding lock..."
-    # The script is running in sandbox.startProcess, so we can just run the dev command
-    bun run dev
 ) 99>"$LOCKFILE"
 
 

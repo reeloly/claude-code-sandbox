@@ -38,7 +38,7 @@ app.use(async (c, next) => {
 app.route("/_messages", messagesRoutes);
 app.route("/_sandbox", sandboxRoutes);
 
-app.get("*", authMiddleware, async (c) => {
+app.all("*", authMiddleware, async (c) => {
   const proxyResponse = await proxyToSandbox(c.req.raw, c.env);
 
   // If the sandbox proxy has a response, return it immediately

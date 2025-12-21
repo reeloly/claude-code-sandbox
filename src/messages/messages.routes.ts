@@ -7,7 +7,7 @@ import { authMiddleware } from "../middleware/auth";
 import { createMessage } from "./messages.service";
 import { HonoSSESender } from "./messages.utils";
 
-export const messagesRoutes = new Hono<{ Bindings: CloudflareBindings }>();
+export const messagesRoutes = new Hono();
 
 const validator = zValidator(
   "json",
@@ -29,7 +29,6 @@ const validator = zValidator(
 messagesRoutes.post("/", authMiddleware, validator, async (c) => {
   const { message, projectId } = c.req.valid("json");
   const userId = c.get("userId");
-  const env = c.env;
 
   let recentSandboxName = getCookie(c, "recentSandboxName");
   if (!recentSandboxName) {
@@ -53,7 +52,6 @@ messagesRoutes.post("/", authMiddleware, validator, async (c) => {
       projectId,
       recentSandboxName,
       sender,
-      env,
     });
   });
 });

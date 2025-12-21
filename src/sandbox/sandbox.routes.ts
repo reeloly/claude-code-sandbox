@@ -4,7 +4,7 @@ import z from "zod";
 import { authMiddleware } from "@/middleware/auth";
 import { ensureSandboxIsInitialized } from "./sandbox.service";
 
-export const sandboxRoutes = new Hono<{ Bindings: CloudflareBindings }>();
+export const sandboxRoutes = new Hono();
 
 const validator = zValidator(
   "query",
@@ -59,7 +59,6 @@ sandboxRoutes.get(
     const result = await ensureSandboxIsInitialized({
       projectId,
       userId,
-      env: c.env,
     });
     if (result.isWarm) {
       return c.json({ isWarm: true, previewUrl: result.previewUrl }, 200);

@@ -104,6 +104,10 @@
     {
       "new_sqlite_classes": ["Sandbox"],
       "tag": "v1"
+    },
+    {
+      "new_sqlite_classes": ["SandboxLock"],
+      "tag": "sandbox-lock-v1"
     }
   ],
   "r2_buckets": [

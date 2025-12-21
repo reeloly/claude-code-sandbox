@@ -22,7 +22,7 @@ export async function ensureSandboxIsInitialized({
   const projectR2Path = getProjectR2Path(userId, projectId, env.ENVIRONMENT);
   const appDir = `/workspace/${projectId}/app`;
   const bundlePath = `/mnt/${projectR2Path}/repo.bundle`;
-  const hostname = `${projectId}.reelolyproject.com`;
+  const hostname = `reelolyproject.com`;
 
   try {
     const exposedPorts = await sandbox.getExposedPorts(hostname);

@@ -81,19 +81,15 @@
     "AGENT_REPO_URL": "https://github.com/reeloly/reeloly-agent.git",
     "ALLOWED_ORIGINS": ["http://localhost:3000", "https://reeloly.com"]
   },
-  "containers": [
-    {
-      "class_name": "Sandbox",
-      "image": "./Dockerfile",
-      "instance_type": "standard-2"
-    }
-  ],
+  // "containers": [
+  //   {
+  //     "class_name": "Sandbox",
+  //     "image": "./Dockerfile",
+  //     "instance_type": "standard-2"
+  //   }
+  // ],
   "durable_objects": {
     "bindings": [
-      {
-        "class_name": "Sandbox",
-        "name": "Sandbox"
-      },
       {
         "class_name": "SandboxLock",
         "name": "SandboxLock"
@@ -101,10 +97,6 @@
     ]
   },
   "migrations": [
-    {
-      "new_sqlite_classes": ["Sandbox"],
-      "tag": "v1"
-    },
     {
       "new_sqlite_classes": ["SandboxLock"],
       "tag": "sandbox-lock-v1"
@@ -114,6 +106,13 @@
     {
       "binding": "REELLOLY_BUCKET",
       "bucket_name": "reeloly"
+    }
+  ],
+  "rules": [
+    {
+      "type": "Text",
+      "globs": ["**/*.sh"],
+      "fallthrough": true
     }
   ]
 }

@@ -37,18 +37,18 @@ app.use(async (c, next) => {
 app.route("/_messages", messagesRoutes);
 app.route("/_sandbox", sandboxRoutes);
 
-app.all("*", authMiddleware, async (c) => {
-  const proxyResponse = await proxyToSandbox(c.req.raw, c.env);
+// app.all("*", authMiddleware, async (c) => {
+//   const proxyResponse = await proxyToSandbox(c.req.raw, c.env);
 
-  // If the sandbox proxy has a response, return it immediately
-  if (proxyResponse) {
-    console.log("service is warm, returning proxy response");
-    return proxyResponse;
-  }
+//   // If the sandbox proxy has a response, return it immediately
+//   if (proxyResponse) {
+//     console.log("service is warm, returning proxy response");
+//     return proxyResponse;
+//   }
 
-  console.log("service is not warm, initializing sandbox");
-  return c.json({ error: "Sandbox is not running" }, 500);
-});
+//   console.log("service is not warm, initializing sandbox");
+//   return c.json({ error: "Sandbox is not running" }, 500);
+// });
 
 // export default {
 //   async fetch(request: Request, env: CloudflareBindings): Promise<Response> {
@@ -96,5 +96,5 @@ app.all("*", authMiddleware, async (c) => {
 // };
 
 export default app;
-export { Sandbox } from "@cloudflare/sandbox";
+// export { Sandbox } from "@cloudflare/sandbox";
 export { SandboxLock } from "./durable-objects/sandbox-lock";

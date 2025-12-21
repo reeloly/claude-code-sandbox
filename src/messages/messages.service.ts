@@ -116,121 +116,112 @@ export async function createMessage({
   env: CloudflareBindings;
 }): Promise<void> {
   // open sandbox
-  const sandbox = getSandbox(env.Sandbox, recentSandboxName);
-  try {
-    const session = await sandbox.getSession("user-123");
-    console.log({ message: "session", ...session });
-  } catch (error) {
-    console.error("Failed to get session", error);
-  }
-
-  const { ANTHROPIC_API_KEY } = env;
-
-  // Set env vars for the session
-  await sandbox.setEnvVars({ ANTHROPIC_API_KEY });
-
-  // ensure the R2 bucket is mounted to sandbox
-  const mountedFiles = await sandbox.exists("/mounted");
-  console.log({ mountedFiles });
-  if (!mountedFiles.exists) {
-    await sandbox.mountBucket(env.REELLOLY_BUCKET_NAME, "/mounted", {
-      endpoint: `https://${env.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-      credentials: {
-        accessKeyId: env.REELLOLY_BUCKET_ACCESS_KEY_ID,
-        secretAccessKey: env.REELLOLY_BUCKET_SECRET_ACCESS_KEY,
-      },
-    });
-  }
-  console.log("Mounted R2 bucket to sandbox");
-  // ensure the bundle for the project exists in R2 bucket
-  const projectR2Path = getProjectR2Path(userId, projectId, env.ENVIRONMENT);
-  const projectBundleExists = await env.REELLOLY_BUCKET.head(
-    `${projectR2Path}/${BUNDLE_FILE_KEY}`
-  );
-  if (!projectBundleExists) {
-    console.log("Project bundle does not exist, copying template bundle");
-    // copy the template bundle to the project directory
-    const templateBundle = await env.REELLOLY_BUCKET.get(
-      TEMPLATE_BUNDLE_FILE_KEY
-    );
-    if (!templateBundle) {
-      console.error("Template bundle does not exist");
-      return;
-    }
-    await env.REELLOLY_BUCKET.put(
-      `${projectR2Path}/${BUNDLE_FILE_KEY}`,
-      templateBundle.body
-    );
-  }
-  console.log("Ensured project bundle exists");
-
-  // copy code to sandbox local filesystem
-  await copyCodeToSandbox(sandbox, projectId, projectR2Path);
-
-  // checkout the agent code to sandbox local filesystem
-  const agentDirExists = await sandbox.exists("/workspace/agent");
-  if (!agentDirExists.exists) {
-    await sandbox.exec("mkdir -p /workspace/agent");
-    console.log("ensured agent directory exists");
-    await sandbox.gitCheckout(env.AGENT_REPO_URL, {
-      targetDir: "/workspace/agent",
-    });
-    console.log("checked out agent code");
-    await sandbox.exec(`cd /workspace/agent && bun install`);
-    console.log("installed agent dependencies");
-  } else {
-    console.log("agent directory already exists");
-    await sandbox.exec(`cd /workspace/agent && git pull`);
-    console.log("pulled latest agent code");
-    await sandbox.exec(`cd /workspace/agent && bun install`);
-    console.log("installed agent dependencies");
-  }
-  // run agent with cwd set to the project directory and stream the response back to the client
-  // Use shell variables with JSON.stringify to safely escape user input and prevent shell injection
-  const stream = await sandbox.execStream(
-    `MESSAGE=${JSON.stringify(message)} PROJECT_ID=${JSON.stringify(
-      projectId
-    )} && cd /workspace/agent && bun run start "$MESSAGE" --cwd /workspace/"$PROJECT_ID"/project`
-  );
-  for await (const event of parseSSEStream<ExecEvent>(stream)) {
-    switch (event.type) {
-      case "stdout":
-        await sender.sendEvent({
-          id: crypto.randomUUID(),
-          message: {
-            type: "agent.message.delta",
-            delta: event.data ?? "",
-          },
-        });
-        break;
-
-      case "stderr":
-        console.error({
-          message: "stderr",
-          stderr: event.data,
-          result: event.result,
-          success: event.result?.success,
-          exitCode: event.exitCode,
-          error: event.error,
-        });
-        break;
-
-      case "complete":
-        console.log("Exit code:", event.exitCode);
-        break;
-
-      case "error":
-        console.error("Failed:", event.error);
-        break;
-    }
-  }
-  // TODO: when agent is done, if code is changed, create a git bundle and copy the bundle to mounted directory
-  // TODO: when agent is done, if code is changed, build the project and copy the build output to R2 for preview
-
-  await sender.sendEvent({
-    id: crypto.randomUUID(),
-    message: {
-      type: "agent.message.end",
-    },
-  });
+  // const sandbox = getSandbox(env.Sandbox, recentSandboxName);
+  // try {
+  //   const session = await sandbox.getSession("user-123");
+  //   console.log({ message: "session", ...session });
+  // } catch (error) {
+  //   console.error("Failed to get session", error);
+  // }
+  // const { ANTHROPIC_API_KEY } = env;
+  // // Set env vars for the session
+  // await sandbox.setEnvVars({ ANTHROPIC_API_KEY });
+  // // ensure the R2 bucket is mounted to sandbox
+  // const mountedFiles = await sandbox.exists("/mounted");
+  // console.log({ mountedFiles });
+  // if (!mountedFiles.exists) {
+  //   await sandbox.mountBucket(env.REELLOLY_BUCKET_NAME, "/mounted", {
+  //     endpoint: `https://${env.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  //     credentials: {
+  //       accessKeyId: env.REELLOLY_BUCKET_ACCESS_KEY_ID,
+  //       secretAccessKey: env.REELLOLY_BUCKET_SECRET_ACCESS_KEY,
+  //     },
+  //   });
+  // }
+  // console.log("Mounted R2 bucket to sandbox");
+  // // ensure the bundle for the project exists in R2 bucket
+  // const projectR2Path = getProjectR2Path(userId, projectId, env.ENVIRONMENT);
+  // const projectBundleExists = await env.REELLOLY_BUCKET.head(
+  //   `${projectR2Path}/${BUNDLE_FILE_KEY}`
+  // );
+  // if (!projectBundleExists) {
+  //   console.log("Project bundle does not exist, copying template bundle");
+  //   // copy the template bundle to the project directory
+  //   const templateBundle = await env.REELLOLY_BUCKET.get(
+  //     TEMPLATE_BUNDLE_FILE_KEY
+  //   );
+  //   if (!templateBundle) {
+  //     console.error("Template bundle does not exist");
+  //     return;
+  //   }
+  //   await env.REELLOLY_BUCKET.put(
+  //     `${projectR2Path}/${BUNDLE_FILE_KEY}`,
+  //     templateBundle.body
+  //   );
+  // }
+  // console.log("Ensured project bundle exists");
+  // // copy code to sandbox local filesystem
+  // await copyCodeToSandbox(sandbox, projectId, projectR2Path);
+  // // checkout the agent code to sandbox local filesystem
+  // const agentDirExists = await sandbox.exists("/workspace/agent");
+  // if (!agentDirExists.exists) {
+  //   await sandbox.exec("mkdir -p /workspace/agent");
+  //   console.log("ensured agent directory exists");
+  //   await sandbox.gitCheckout(env.AGENT_REPO_URL, {
+  //     targetDir: "/workspace/agent",
+  //   });
+  //   console.log("checked out agent code");
+  //   await sandbox.exec(`cd /workspace/agent && bun install`);
+  //   console.log("installed agent dependencies");
+  // } else {
+  //   console.log("agent directory already exists");
+  //   await sandbox.exec(`cd /workspace/agent && git pull`);
+  //   console.log("pulled latest agent code");
+  //   await sandbox.exec(`cd /workspace/agent && bun install`);
+  //   console.log("installed agent dependencies");
+  // }
+  // // run agent with cwd set to the project directory and stream the response back to the client
+  // // Use shell variables with JSON.stringify to safely escape user input and prevent shell injection
+  // const stream = await sandbox.execStream(
+  //   `MESSAGE=${JSON.stringify(message)} PROJECT_ID=${JSON.stringify(
+  //     projectId
+  //   )} && cd /workspace/agent && bun run start "$MESSAGE" --cwd /workspace/"$PROJECT_ID"/project`
+  // );
+  // for await (const event of parseSSEStream<ExecEvent>(stream)) {
+  //   switch (event.type) {
+  //     case "stdout":
+  //       await sender.sendEvent({
+  //         id: crypto.randomUUID(),
+  //         message: {
+  //           type: "agent.message.delta",
+  //           delta: event.data ?? "",
+  //         },
+  //       });
+  //       break;
+  //     case "stderr":
+  //       console.error({
+  //         message: "stderr",
+  //         stderr: event.data,
+  //         result: event.result,
+  //         success: event.result?.success,
+  //         exitCode: event.exitCode,
+  //         error: event.error,
+  //       });
+  //       break;
+  //     case "complete":
+  //       console.log("Exit code:", event.exitCode);
+  //       break;
+  //     case "error":
+  //       console.error("Failed:", event.error);
+  //       break;
+  //   }
+  // }
+  // // TODO: when agent is done, if code is changed, create a git bundle and copy the bundle to mounted directory
+  // // TODO: when agent is done, if code is changed, build the project and copy the build output to R2 for preview
+  // await sender.sendEvent({
+  //   id: crypto.randomUUID(),
+  //   message: {
+  //     type: "agent.message.end",
+  //   },
+  // });
 }

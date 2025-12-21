@@ -21,6 +21,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@e2b/code-interpreter": "^2.3.3",
     "@hono/clerk-auth": "^3.0.3",
     "@hono/standard-validator": "^0.2.1",
     "hono": "^4.11.1",

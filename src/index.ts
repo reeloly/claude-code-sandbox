@@ -5,7 +5,6 @@ import { cors } from "hono/cors";
 import { messagesRoutes } from "./messages/messages.routes";
 import { authMiddleware } from "./middleware/auth";
 import { sandboxRoutes } from "./sandbox/sandbox.routes";
-import { ensureSandboxIsInitialized } from "./sandbox/sandbox.service";
 
 const EXTRA_SYSTEM =
   "You are an automatic feature-implementer/bug-fixer." +
@@ -48,31 +47,7 @@ app.all("*", authMiddleware, async (c) => {
   }
 
   console.log("service is not warm, initializing sandbox");
-
-  const projectId = new URL(c.req.url).searchParams.get("projectId");
-
-  // Validate projectId to prevent shell injection - only allow alphanumeric, hyphens, underscores
-  if (!projectId || !/^[\w-]+$/.test(projectId)) {
-    console.error(`Invalid project ID: ${projectId}, url: ${c.req.url}`);
-    return c.json({ error: `Invalid project ID: ${projectId}` }, 400);
-  }
-
-  // Validate userId to prevent shell injection (defense in depth)
-  const userId = c.get("userId");
-  if (!userId || !/^[\w-]+$/.test(userId)) {
-    console.error(`Invalid user ID: ${userId}, url: ${c.req.url}`);
-    return c.json({ error: `Invalid user ID: ${userId}` }, 401);
-  }
-
-  const result = await ensureSandboxIsInitialized({
-    projectId,
-    userId,
-    env: c.env,
-  });
-  if (result.isWarm) {
-    return c.json({ isWarm: true, previewUrl: result.previewUrl }, 200);
-  }
-  return c.json({ isWarm: false, error: result.error }, 500);
+  return c.json({ error: "Sandbox is not running" }, 500);
 });
 
 // export default {

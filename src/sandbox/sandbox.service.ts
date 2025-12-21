@@ -2,12 +2,10 @@ import { getSandbox } from "@cloudflare/sandbox";
 import { getProjectR2Path } from "@/constants";
 
 export async function ensureSandboxIsInitialized({
-  hostname,
   projectId,
   userId,
   env,
 }: {
-  hostname: string;
   projectId: string;
   userId: string;
   env: CloudflareBindings;
@@ -24,6 +22,7 @@ export async function ensureSandboxIsInitialized({
   const projectR2Path = getProjectR2Path(userId, projectId, env.ENVIRONMENT);
   const appDir = `/workspace/${projectId}/app`;
   const bundlePath = `/mnt/${projectR2Path}/repo.bundle`;
+  const hostname = `${projectId}.reelolyproject.com`;
 
   try {
     const exposedPorts = await sandbox.getExposedPorts(hostname);

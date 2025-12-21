@@ -46,7 +46,6 @@ app.all("*", authMiddleware, async (c) => {
     return proxyResponse;
   }
 
-  const hostname = new URL(c.req.url).hostname;
   const projectId = new URL(c.req.url).searchParams.get("projectId");
 
   // Validate projectId to prevent shell injection - only allow alphanumeric, hyphens, underscores
@@ -63,7 +62,6 @@ app.all("*", authMiddleware, async (c) => {
   }
 
   const result = await ensureSandboxIsInitialized({
-    hostname,
     projectId,
     userId,
     env: c.env,

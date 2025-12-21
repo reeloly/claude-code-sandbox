@@ -73,6 +73,7 @@ export async function ensureSandboxIsInitialized({
       name: "preview",
     });
     console.log("Server accessible at:", exposed.url);
+
     return { isWarm: true, previewUrl: exposed.url };
   } catch (error) {
     console.error("Failed to initialize sandbox:", error);

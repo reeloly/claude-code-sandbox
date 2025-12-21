@@ -43,8 +43,11 @@ app.all("*", authMiddleware, async (c) => {
 
   // If the sandbox proxy has a response, return it immediately
   if (proxyResponse) {
+    console.log("service is warm, returning proxy response");
     return proxyResponse;
   }
+
+  console.log("service is not warm, initializing sandbox");
 
   const projectId = new URL(c.req.url).searchParams.get("projectId");
 

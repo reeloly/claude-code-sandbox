@@ -6,6 +6,7 @@
   "description": "A minimal example of using the Claude Code with Sandbox SDK",
   "scripts": {
     "dev": "bun run --hot src/index.ts",
+    "start": "bun run src/index.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

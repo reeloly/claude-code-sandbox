@@ -35,7 +35,9 @@ app.get("/", (c) => {
 	return c.json({ message: "Hello, world!" });
 });
 
+const port = process.env.PORT || 8787;
+
 export default {
-	port: 8787,
+	port,
 	fetch: app.fetch,
 };

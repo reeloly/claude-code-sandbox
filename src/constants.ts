@@ -6,6 +6,8 @@ export const PROD_DIR = "prod";
 export const BUNDLE_FILE_KEY = "repo.bundle";
 export const TEMPLATE_BUNDLE_FILE_KEY = `initialization/${BUNDLE_FILE_KEY}`;
 
+export const INIT_SCRIPT_PATH = "./scripts/init.sh";
+
 export function getProjectR2Path(
   userId: string,
   projectId: string,

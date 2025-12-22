@@ -20,6 +20,7 @@ else
     echo "--- No repository found. Performing CLONE ---"
     
     # Clone the bundle into the target directory
+    mkdir -p "$TARGET_DIR"
     git clone "$BUNDLE_PATH" "$TARGET_DIR"
     
     # Optional: Set the bundle as a remote named 'origin' 
@@ -27,5 +28,7 @@ else
     cd "$TARGET_DIR" || exit
     git remote set-url origin "$BUNDLE_PATH"
 fi
+
+bun install
 
 echo "--- Process Complete ---"

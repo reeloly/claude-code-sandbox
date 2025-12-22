@@ -8,12 +8,14 @@ export const TEMPLATE_BUNDLE_FILE_KEY = `initialization/${BUNDLE_FILE_KEY}`;
 
 export const INIT_SCRIPT_PATH = "./scripts/init.sh";
 
+export const mountedDirectory = "/mnt";
+
 export function getProjectR2Path(
-  userId: string,
-  projectId: string,
-  mode: "dev" | "prod"
+	userId: string,
+	projectId: string,
+	mode: "dev" | "prod",
 ) {
-  return `${
-    mode === "dev" ? DEV_DIR : PROD_DIR
-  }/${USER_DIR}/${userId}/${PROJECT_DIR}/${projectId}`;
+	return `${
+		mode === "dev" ? DEV_DIR : PROD_DIR
+	}/${USER_DIR}/${userId}/${PROJECT_DIR}/${projectId}`;
 }

@@ -40,4 +40,5 @@ const port = process.env.PORT || 8787;
 export default {
 	port,
 	fetch: app.fetch,
+	idleTimeout: 60, // 60 seconds
 };

@@ -2,11 +2,7 @@ import Sandbox from "@e2b/code-interpreter";
 import { Lock } from "@upstash/lock";
 import { Redis } from "@upstash/redis";
 import invariant from "tiny-invariant";
-import {
-	getProjectR2Path,
-	INIT_SCRIPT_PATH,
-	mountedDirectory,
-} from "@/constants";
+import { getProjectR2Path, mountedDirectory } from "@/constants";
 import { copyDotClaudeFromR2ToSandbox } from "@/dot-claude/dot-claude.service";
 import { env } from "@/env-helper";
 
@@ -86,37 +82,43 @@ async function ensureSandboxIsInitialized({
 			message: "Sandbox already exists, connecting to existing sandbox",
 		});
 		sandbox = await Sandbox.connect(sandboxes[0].sandboxId);
-		console.log({ message: "Sandbox connected" });
 	}
+	console.log({
+		message: "Sandbox connected",
+		timestamp: new Date().toISOString(),
+	});
 
 	await ensureR2BucketIsMounted(sandbox);
-	console.log({ message: "R2 bucket mounted" });
+	console.log({
+		message: "R2 bucket mounted",
+		timestamp: new Date().toISOString(),
+	});
 
-	await ensureDotClaudeIsReady(userId, projectId, sandbox);
-	console.log({ message: "Dot claude ready" });
-
-	await ensureRepoIsReady(sandbox, appDir, bundlePath);
-	console.log({ message: "Repo ready" });
-
-	await ensureServerIsRunning(sandbox, appDir);
-	console.log({ message: "Server running" });
-
-	// Poll for server readiness (clone + install + dev server startup can take 30+ seconds)
-	// const maxAttempts = 60;
-	// const pollInterval = 1000;
-	// for (let attempt = 0; attempt < maxAttempts; attempt++) {
-	// 	await new Promise((resolve) => setTimeout(resolve, pollInterval));
-	// 	const check = await sandbox.commands.run(
-	// 		"curl -s -o /dev/null -w '%{http_code}' http://localhost:8080 || echo '000'",
-	// 	);
-	// 	if (check.stdout.trim() !== "000000") {
-	// 		console.log("Server is ready");
-	// 		break;
-	// 	}
-	// }
+	await Promise.all([
+		ensureDotClaudeIsReady(userId, projectId, sandbox).then(() => {
+			console.log({
+				message: "Dot claude ready",
+				timestamp: new Date().toISOString(),
+			});
+		}),
+		(async () => {
+			await ensureRepoIsReady(sandbox, appDir, bundlePath);
+			console.log({
+				message: "Repo ready",
+				timestamp: new Date().toISOString(),
+			});
+			await ensureServerIsRunning(sandbox, appDir);
+			console.log({
+				message: "Server running",
+				timestamp: new Date().toISOString(),
+			});
+		})(),
+	]);
 
 	const host = sandbox.getHost(8080);
-	console.log("Server accessible at:", `https://${host}`);
+	console.log("Server accessible at:", `https://${host}`, {
+		timestamp: new Date().toISOString(),
+	});
 
 	return { isWarm: true, previewUrl: `https://${host}` };
 }
@@ -148,6 +150,12 @@ async function ensureDotClaudeIsReady(
 	projectId: string,
 	sandbox: Sandbox,
 ) {
+	const dotClaudeCheck = await sandbox.commands.run(
+		"[[ -e /home/user/.claude && -d /home/user/.claude ]] && echo 'exists' || echo 'not_exists'",
+	);
+	if (dotClaudeCheck.stdout.trim() === "exists") {
+		return;
+	}
 	await copyDotClaudeFromR2ToSandbox(userId, projectId, sandbox);
 }
 
@@ -156,19 +164,27 @@ async function ensureRepoIsReady(
 	targetDir: string,
 	bundlePath: string,
 ) {
-	const initScript = Bun.file(INIT_SCRIPT_PATH);
-	await sandbox.files.write("/usr/local/bin/init.sh", await initScript.text());
-	console.log({ message: "init.sh written" });
+	const repoCheck = await sandbox.commands.run(
+		"[[ -e /home/user/repo.bundle && -f /home/user/repo.bundle ]] && echo 'exists' || echo 'not_exists'",
+	);
+	if (repoCheck.stdout.trim() === "exists") {
+		return;
+	}
+
+	const copyBundleResult = await sandbox.commands.run(
+		`cp -n ${bundlePath} /home/user/repo.bundle || echo 'Failed to copy bundle'`,
+	);
+	if (copyBundleResult.stdout.trim().includes("Failed to copy bundle")) {
+		console.error({ message: "Failed to copy bundle", copyBundleResult });
+		throw new Error("Failed to copy bundle");
+	}
+	console.log({
+		message: "bundle copied",
+		timestamp: new Date().toISOString(),
+	});
+
 	const result = await sandbox.commands.run(
-		`chmod +x /usr/local/bin/init.sh && /usr/local/bin/init.sh '${targetDir}' '${bundlePath}' || echo 'init.sh failed'`,
-		{
-			onStdout: (line) => {
-				console.log({ message: "init.sh stdout", line });
-			},
-			onStderr: (line) => {
-				console.error({ message: "init.sh stderr", line });
-			},
-		},
+		`chmod +x /usr/local/bin/init.sh && /usr/local/bin/init.sh '${targetDir}' '/home/user/repo.bundle' || echo 'init.sh failed'`,
 	);
 	console.log({ message: "init.sh result", result });
 	if (result.stdout.trim().includes("init.sh failed")) {

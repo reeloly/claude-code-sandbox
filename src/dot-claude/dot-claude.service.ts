@@ -1,30 +1,10 @@
 import type Sandbox from "@e2b/code-interpreter";
-import { env } from "@/env-helper";
 
 export async function copyDotClaudeFromR2ToSandbox(
 	userId: string,
 	projectId: string,
 	sandbox: Sandbox,
 ) {
-	const rcloneConfigContent = `
-[r2]
-type = s3
-provider = Cloudflare
-access_key_id = ${env.REELLOLY_BUCKET_ACCESS_KEY_ID}
-secret_access_key = ${env.REELLOLY_BUCKET_SECRET_ACCESS_KEY}
-endpoint = https://${env.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com
-acl = private
-`;
-	const isRcloneConfigExists = await sandbox.files.exists(
-		"/home/user/.config/rclone/rclone.conf",
-	);
-	if (!isRcloneConfigExists) {
-		await sandbox.files.write(
-			"/home/user/.config/rclone/rclone.conf",
-			rcloneConfigContent,
-		);
-	}
-
 	const dotClaudePathOnR2 = `r2:reeloly/dev/users/${userId}/projects/${projectId}/dot-claude`;
 	const dotClaudePathOnSandbox = "/home/user/.claude";
 	const result = await sandbox.commands.run(

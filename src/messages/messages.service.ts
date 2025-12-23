@@ -1,5 +1,7 @@
+import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import Sandbox from "@e2b/code-interpreter";
 import invariant from "tiny-invariant";
+import { copyDotClaudeFromSandboxToR2 } from "@/dot-claude/dot-claude.service";
 import type { SseEventSender } from "./messages.utils";
 
 export async function createMessage({
@@ -30,17 +32,54 @@ export async function createMessage({
 	invariant(sandboxes[0], "Sandbox not found");
 	const sandbox = await Sandbox.connect(sandboxes[0].sandboxId);
 
+	let buffer = "";
+
+	const processLine = async (line: string) => {
+		if (line.trim() === "") {
+			return;
+		}
+		let jsonMessage: SDKMessage;
+		try {
+			jsonMessage = JSON.parse(line) as SDKMessage;
+		} catch (error) {
+			console.error({
+				message: "messages.service failed to parse JSON",
+				line,
+				error: error instanceof Error ? error.message : "Unknown error",
+			});
+			return;
+		}
+		console.log({ message: "messages.service message", jsonMessage });
+		if (
+			jsonMessage.type === "stream_event" &&
+			jsonMessage.event.type === "content_block_delta" &&
+			"text" in jsonMessage.event.delta
+		) {
+			await sender.sendEvent({
+				id: crypto.randomUUID(),
+				message: {
+					type: "agent.message.delta",
+					delta: jsonMessage.event.delta.text,
+				},
+			});
+		}
+	};
+
 	await sandbox.commands.run(
-		`cd /home/user/reeloly/reeloly-agent && bun run start '${message}' --cwd /home/user/${projectId}/app`,
+		`cd /home/user/reeloly/reeloly-agent && TASK_INPUT='${message.replace(/'/g, "'\\''")}' bun run start --continue --cwd /home/user/${projectId}/app`,
 		{
-			onStdout: async (line) => {
-				await sender.sendEvent({
-					id: crypto.randomUUID(),
-					message: {
-						type: "agent.message.delta",
-						delta: line,
-					},
-				});
+			timeoutMs: 120_000,
+			onStdout: async (rawString) => {
+				buffer += rawString;
+				const lines = buffer.split("\n");
+
+				// The last element is either "" (if it ended in \n)
+				// or a partial line. Save it for the next chunk.
+				buffer = lines.pop() ?? "";
+
+				for (const line of lines) {
+					await processLine(line);
+				}
 			},
 			onStderr: async (line) => {
 				console.error({
@@ -53,10 +92,17 @@ export async function createMessage({
 		},
 	);
 
+	// Process any remaining buffered content that didn't end with a newline
+	if (buffer.trim() !== "") {
+		await processLine(buffer);
+	}
+
 	await sender.sendEvent({
 		id: crypto.randomUUID(),
 		message: {
 			type: "agent.message.end",
 		},
 	});
+
+	await copyDotClaudeFromSandboxToR2(userId, projectId, sandbox);
 }

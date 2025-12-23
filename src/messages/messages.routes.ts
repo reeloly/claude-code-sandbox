@@ -1,5 +1,4 @@
 import { Hono } from "hono";
-import { getCookie, setCookie } from "hono/cookie";
 import { streamSSE } from "hono/streaming";
 import { validator as zValidator } from "hono-openapi";
 import z from "zod";
@@ -38,11 +37,32 @@ messagesRoutes.post("/", authMiddleware, validator, async (c) => {
 	});
 	return streamSSE(c, async (stream) => {
 		const sender = new HonoSSESender(stream);
-		await createMessage({
-			userId,
-			message,
-			projectId,
-			sender,
-		});
+
+		// Start keepalive ping interval (5 seconds)
+		const keepaliveInterval = setInterval(() => {
+			sender.sendPing().catch((err) => {
+				console.error({
+					message: "Failed to send keepalive ping",
+					error: err,
+				});
+			});
+		}, 5000);
+
+		try {
+			await createMessage({
+				userId,
+				message,
+				projectId,
+				sender,
+			});
+		} catch (error) {
+			console.error({
+				message: "Failed to create message",
+				error: error,
+			});
+			throw error;
+		} finally {
+			clearInterval(keepaliveInterval);
+		}
 	});
 });

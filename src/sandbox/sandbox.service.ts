@@ -7,6 +7,7 @@ import {
 	INIT_SCRIPT_PATH,
 	mountedDirectory,
 } from "@/constants";
+import { copyDotClaudeFromR2ToSandbox } from "@/dot-claude/dot-claude.service";
 import { env } from "@/env-helper";
 
 export async function ensureSandboxIsInitializedWithLock({
@@ -91,6 +92,9 @@ async function ensureSandboxIsInitialized({
 	await ensureR2BucketIsMounted(sandbox);
 	console.log({ message: "R2 bucket mounted" });
 
+	await ensureDotClaudeIsReady(userId, projectId, sandbox);
+	console.log({ message: "Dot claude ready" });
+
 	await ensureRepoIsReady(sandbox, appDir, bundlePath);
 	console.log({ message: "Repo ready" });
 
@@ -139,6 +143,14 @@ async function ensureR2BucketIsMounted(sandbox: Sandbox) {
 	);
 }
 
+async function ensureDotClaudeIsReady(
+	userId: string,
+	projectId: string,
+	sandbox: Sandbox,
+) {
+	await copyDotClaudeFromR2ToSandbox(userId, projectId, sandbox);
+}
+
 async function ensureRepoIsReady(
 	sandbox: Sandbox,
 	targetDir: string,
@@ -170,6 +182,7 @@ async function ensureServerIsRunning(sandbox: Sandbox, targetDir: string) {
 	const portCheck = await sandbox.commands.run(
 		"lsof -ti:8080 || echo 'not_running'",
 	);
+	console.log({ message: "portCheck", portCheck });
 
 	if (portCheck.stdout.trim().includes("not_running")) {
 		console.log("Starting dev server...");
@@ -178,7 +191,7 @@ async function ensureServerIsRunning(sandbox: Sandbox, targetDir: string) {
 			{
 				background: true,
 				onStdout: (line) => {
-					console.log({ message: "stdout", line });
+					console.log({ message: "ensureServerIsRunning stdout", line });
 				},
 				onStderr: (line) => {
 					console.error({ message: "stderr", line });
@@ -186,14 +199,19 @@ async function ensureServerIsRunning(sandbox: Sandbox, targetDir: string) {
 			},
 		);
 	}
+	console.log("checking if server is running");
 
 	// wait for the localhost:8080 server to be running
 	for (let i = 0; i < 10; i++) {
-		await new Promise((resolve) => setTimeout(resolve, 1000));
+		console.log("waiting for server to be running", i);
+		await Bun.sleep(1000);
+		console.log({ message: "waiting for server to be running", i });
 		const check = await sandbox.commands.run(
-			"curl -s -o /dev/null -w '%{http_code}' http://localhost:8080 || echo '000'",
+			"curl -s -o /dev/null -w '%{http_code}' http://localhost:8080 || echo '999'",
 		);
-		if (check.stdout.trim() !== "000000") {
+		console.log({ message: "check", check });
+		// '999' means curl failed to connect; any other value is an HTTP status code
+		if (!check.stdout.trim().includes("999")) {
 			console.log("Server is ready");
 			break;
 		}

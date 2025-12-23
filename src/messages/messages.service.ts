@@ -65,44 +65,64 @@ export async function createMessage({
 		}
 	};
 
-	await sandbox.commands.run(
-		`cd /home/user/reeloly/reeloly-agent && TASK_INPUT='${message.replace(/'/g, "'\\''")}' bun run start --continue --cwd /home/user/${projectId}/app`,
-		{
-			timeoutMs: 120_000,
-			onStdout: async (rawString) => {
-				buffer += rawString;
-				const lines = buffer.split("\n");
+	// Start keepalive ping interval (5 seconds)
+	const keepaliveInterval = setInterval(() => {
+		sender.sendPing().catch((err) => {
+			console.error({
+				message: "Failed to send keepalive ping",
+				error: err,
+			});
+		});
+	}, 5000);
 
-				// The last element is either "" (if it ended in \n)
-				// or a partial line. Save it for the next chunk.
-				buffer = lines.pop() ?? "";
+	try {
+		await sandbox.commands.run(
+			`cd /home/user/reeloly/reeloly-agent && TASK_INPUT='${message.replace(/'/g, "'\\''")}' bun run start --continue --cwd /home/user/${projectId}/app`,
+			{
+				timeoutMs: 120_000,
+				onStdout: async (rawString) => {
+					buffer += rawString;
+					const lines = buffer.split("\n");
 
-				for (const line of lines) {
-					await processLine(line);
-				}
+					// The last element is either "" (if it ended in \n)
+					// or a partial line. Save it for the next chunk.
+					buffer = lines.pop() ?? "";
+
+					for (const line of lines) {
+						await processLine(line);
+					}
+				},
+				onStderr: async (line) => {
+					console.error({
+						message: "messages.service stderr",
+						line,
+						projectId,
+						userId,
+					});
+				},
 			},
-			onStderr: async (line) => {
-				console.error({
-					message: "messages.service stderr",
-					line,
-					projectId,
-					userId,
-				});
-			},
-		},
-	);
+		);
 
-	// Process any remaining buffered content that didn't end with a newline
-	if (buffer.trim() !== "") {
-		await processLine(buffer);
+		// Process any remaining buffered content that didn't end with a newline
+		if (buffer.trim() !== "") {
+			await processLine(buffer);
+		}
+
+		await sender.sendEvent({
+			id: crypto.randomUUID(),
+			message: {
+				type: "agent.message.end",
+			},
+		});
+
+		await copyDotClaudeFromSandboxToR2(userId, projectId, sandbox);
+	} catch (error) {
+		console.error({
+			message: "Failed to create message",
+			error: error,
+		});
+		throw error;
+	} finally {
+		clearInterval(keepaliveInterval);
 	}
-
-	await sender.sendEvent({
-		id: crypto.randomUUID(),
-		message: {
-			type: "agent.message.end",
-		},
-	});
-
-	await copyDotClaudeFromSandboxToR2(userId, projectId, sandbox);
 }

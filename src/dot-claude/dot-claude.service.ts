@@ -14,11 +14,17 @@ access_key_id = ${env.REELLOLY_BUCKET_ACCESS_KEY_ID}
 secret_access_key = ${env.REELLOLY_BUCKET_SECRET_ACCESS_KEY}
 endpoint = https://${env.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com
 acl = private
-  `;
-	await sandbox.files.write(
+`;
+	const isRcloneConfigExists = await sandbox.files.exists(
 		"/home/user/.config/rclone/rclone.conf",
-		rcloneConfigContent,
 	);
+	if (!isRcloneConfigExists) {
+		await sandbox.files.write(
+			"/home/user/.config/rclone/rclone.conf",
+			rcloneConfigContent,
+		);
+	}
+
 	const dotClaudePathOnR2 = `r2:reeloly/dev/users/${userId}/projects/${projectId}/dot-claude`;
 	const dotClaudePathOnSandbox = "/home/user/.claude";
 	const result = await sandbox.commands.run(

@@ -38,31 +38,11 @@ messagesRoutes.post("/", authMiddleware, validator, async (c) => {
 	return streamSSE(c, async (stream) => {
 		const sender = new HonoSSESender(stream);
 
-		// Start keepalive ping interval (5 seconds)
-		const keepaliveInterval = setInterval(() => {
-			sender.sendPing().catch((err) => {
-				console.error({
-					message: "Failed to send keepalive ping",
-					error: err,
-				});
-			});
-		}, 5000);
-
-		try {
-			await createMessage({
-				userId,
-				message,
-				projectId,
-				sender,
-			});
-		} catch (error) {
-			console.error({
-				message: "Failed to create message",
-				error: error,
-			});
-			throw error;
-		} finally {
-			clearInterval(keepaliveInterval);
-		}
+		await createMessage({
+			userId,
+			message,
+			projectId,
+			sender,
+		});
 	});
 });

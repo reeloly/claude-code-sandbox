@@ -2,9 +2,8 @@ import Sandbox from "@e2b/code-interpreter";
 import { Lock } from "@upstash/lock";
 import { Redis } from "@upstash/redis";
 import invariant from "tiny-invariant";
-import { getProjectR2Path, mountedDirectory } from "@/constants";
-import { copyDotClaudeFromR2ToSandbox } from "@/dot-claude/dot-claude.service";
 import { env } from "@/env-helper";
+import { copyProjectFilesFromR2ToSandbox } from "@/project-files/project-files.service";
 
 export async function ensureSandboxIsInitializedWithLock({
 	projectId,
@@ -52,9 +51,9 @@ async function ensureSandboxIsInitialized({
 	previewUrl?: string;
 	error?: string;
 }> {
-	const projectR2Path = getProjectR2Path(userId, projectId, env.ENVIRONMENT);
-	const appDir = `/home/user/${projectId}/app`;
-	const bundlePath = `/mnt/${projectR2Path}/repo.bundle`;
+	// const projectR2Path = getProjectR2Path(userId, projectId, env.ENVIRONMENT);
+	const appDir = `/home/user/app`;
+	// const bundlePath = `/mnt/${projectR2Path}/repo.bundle`;
 
 	let sandbox: Sandbox;
 
@@ -88,32 +87,17 @@ async function ensureSandboxIsInitialized({
 		timestamp: new Date().toISOString(),
 	});
 
-	await ensureR2BucketIsMounted(sandbox);
+	await ensureProjectFilesAreReady(userId, projectId, sandbox);
 	console.log({
-		message: "R2 bucket mounted",
+		message: "Project files ready",
 		timestamp: new Date().toISOString(),
 	});
 
-	await Promise.all([
-		ensureDotClaudeIsReady(userId, projectId, sandbox).then(() => {
-			console.log({
-				message: "Dot claude ready",
-				timestamp: new Date().toISOString(),
-			});
-		}),
-		(async () => {
-			await ensureRepoIsReady(sandbox, appDir, bundlePath);
-			console.log({
-				message: "Repo ready",
-				timestamp: new Date().toISOString(),
-			});
-			await ensureServerIsRunning(sandbox, appDir);
-			console.log({
-				message: "Server running",
-				timestamp: new Date().toISOString(),
-			});
-		})(),
-	]);
+	await ensureServerIsRunning(sandbox, appDir);
+	console.log({
+		message: "Server running",
+		timestamp: new Date().toISOString(),
+	});
 
 	const host = sandbox.getHost(8080);
 	console.log("Server accessible at:", `https://${host}`, {
@@ -123,73 +107,31 @@ async function ensureSandboxIsInitialized({
 	return { isWarm: true, previewUrl: `https://${host}` };
 }
 
-async function ensureR2BucketIsMounted(sandbox: Sandbox) {
-	// Check if /mnt is already mounted
-	const mountCheck = await sandbox.commands.run(
-		"grep -qs ' /mnt ' /proc/mounts || echo 'not_mounted'",
-	);
-	if (mountCheck.stdout.trim() !== "not_mounted") {
-		console.log("/mnt is already mounted, skipping mount");
-		return;
-	}
-
-	// Create a file with the R2 credentials
-	// If you use another path for the credentials you need to add the path in the command s3fs command
-	await sandbox.files.write(
-		"/root/.passwd-s3fs",
-		`${env.REELLOLY_BUCKET_ACCESS_KEY_ID}:${env.REELLOLY_BUCKET_SECRET_ACCESS_KEY}`,
-	);
-	await sandbox.commands.run("sudo chmod 600 /root/.passwd-s3fs");
-	await sandbox.commands.run(
-		`sudo s3fs -o url=https://${env.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com -o allow_other -o umask=0022 -o uid=$(id -u user) -o gid=$(id -g user) ${env.REELLOLY_BUCKET_NAME} ${mountedDirectory}`,
-	);
-}
-
-async function ensureDotClaudeIsReady(
+async function ensureProjectFilesAreReady(
 	userId: string,
 	projectId: string,
 	sandbox: Sandbox,
 ) {
-	const dotClaudeCheck = await sandbox.commands.run(
-		"[[ -e /home/user/.claude && -d /home/user/.claude ]] && echo 'exists' || echo 'not_exists'",
+	const projectFilesCheck = await sandbox.commands.run(
+		`[[ -e /home/user/project.tar.gz && -f /home/user/project.tar.gz ]] && echo 'exists' || echo 'not_exists'`,
 	);
-	if (dotClaudeCheck.stdout.trim() === "exists") {
+	if (projectFilesCheck.stdout.trim() === "exists") {
+		console.log({
+			message: "Project files already exist, skipping copy",
+			projectFilesCheck,
+		});
 		return;
 	}
-	await copyDotClaudeFromR2ToSandbox(userId, projectId, sandbox);
-}
-
-async function ensureRepoIsReady(
-	sandbox: Sandbox,
-	targetDir: string,
-	bundlePath: string,
-) {
-	const repoCheck = await sandbox.commands.run(
-		"[[ -e /home/user/repo.bundle && -f /home/user/repo.bundle ]] && echo 'exists' || echo 'not_exists'",
+	await copyProjectFilesFromR2ToSandbox(userId, projectId, sandbox);
+	const installResult = await sandbox.commands.run(
+		`cd /home/user/app && bun install || echo 'Failed to install project files'`,
 	);
-	if (repoCheck.stdout.trim() === "exists") {
-		return;
-	}
-
-	const copyBundleResult = await sandbox.commands.run(
-		`cp -n ${bundlePath} /home/user/repo.bundle || echo 'Failed to copy bundle'`,
-	);
-	if (copyBundleResult.stdout.trim().includes("Failed to copy bundle")) {
-		console.error({ message: "Failed to copy bundle", copyBundleResult });
-		throw new Error("Failed to copy bundle");
-	}
-	console.log({
-		message: "bundle copied",
-		timestamp: new Date().toISOString(),
-	});
-
-	const result = await sandbox.commands.run(
-		`chmod +x /usr/local/bin/init.sh && /usr/local/bin/init.sh '${targetDir}' '/home/user/repo.bundle' || echo 'init.sh failed'`,
-	);
-	console.log({ message: "init.sh result", result });
-	if (result.stdout.trim().includes("init.sh failed")) {
-		console.error({ message: "Failed to initialize repo", result });
-		throw new Error("init.sh failed");
+	if (installResult.stdout.trim().includes("Failed to install project files")) {
+		console.error({
+			message: "Failed to install project files",
+			installResult,
+		});
+		throw new Error("Failed to install project files");
 	}
 }
 

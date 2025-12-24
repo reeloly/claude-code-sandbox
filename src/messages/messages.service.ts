@@ -1,7 +1,8 @@
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import Sandbox from "@e2b/code-interpreter";
 import invariant from "tiny-invariant";
-import { copyDotClaudeFromSandboxToR2 } from "@/dot-claude/dot-claude.service";
+import { env } from "@/env-helper";
+import { copyProjectFilesFromSandboxToR2 } from "@/project-files/project-files.service";
 import type { SseEventSender } from "./messages.utils";
 
 export async function createMessage({
@@ -67,6 +68,8 @@ export async function createMessage({
 
 	// Start keepalive ping interval (5 seconds)
 	const keepaliveInterval = setInterval(() => {
+		// Change the sandbox timeout to 30 seconds from now
+		sandbox.setTimeout(30_000);
 		sender.sendPing().catch((err) => {
 			console.error({
 				message: "Failed to send keepalive ping",
@@ -77,7 +80,7 @@ export async function createMessage({
 
 	try {
 		await sandbox.commands.run(
-			`cd /home/user/reeloly/reeloly-agent && TASK_INPUT='${message.replace(/'/g, "'\\''")}' bun run start --continue --cwd /home/user/${projectId}/app`,
+			`cd /home/user/reeloly/reeloly-agent && TASK_INPUT='${message.replace(/'/g, "'\\''")}' bun run start --continue --cwd /home/user/app`,
 			{
 				timeoutMs: 120_000,
 				onStdout: async (rawString) => {
@@ -115,7 +118,7 @@ export async function createMessage({
 			},
 		});
 
-		await copyDotClaudeFromSandboxToR2(userId, projectId, sandbox);
+		await copyProjectFilesFromSandboxToR2(userId, projectId, sandbox);
 	} catch (error) {
 		console.error({
 			message: "Failed to create message",

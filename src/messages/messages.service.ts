@@ -1,7 +1,6 @@
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import Sandbox from "@e2b/code-interpreter";
 import invariant from "tiny-invariant";
-import { env } from "@/env-helper";
 import { copyProjectFilesFromSandboxToR2 } from "@/project-files/project-files.service";
 import type { SseEventSender } from "./messages.utils";
 
@@ -80,7 +79,7 @@ export async function createMessage({
 
 	try {
 		await sandbox.commands.run(
-			`cd /home/user/reeloly/reeloly-agent && TASK_INPUT='${message.replace(/'/g, "'\\''")}' bun run start --continue --cwd /home/user/app`,
+			`cd /home/user/reeloly/reeloly-agent && TASK_INPUT='${message.replace(/'/g, "'\\''")}' bun run start --sessionId "" --continue --cwd /home/user/app`,
 			{
 				timeoutMs: 120_000,
 				onStdout: async (rawString) => {

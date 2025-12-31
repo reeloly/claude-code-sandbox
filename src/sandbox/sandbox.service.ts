@@ -74,6 +74,7 @@ async function ensureSandboxIsInitialized({
 			envs: {
 				ANTHROPIC_API_KEY: env.ANTHROPIC_API_KEY,
 				GOOGLE_API_KEY: env.GOOGLE_API_KEY,
+				FAL_KEY: env.FAL_KEY,
 			},
 		});
 	} else {

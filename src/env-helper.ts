@@ -15,6 +15,7 @@ const envSchema = z.object({
 	AGENT_REPO_URL: z.string(),
 	ALLOWED_ORIGINS: z.string().transform((val) => val.split(",")),
 	GOOGLE_API_KEY: z.string(),
+	FAL_KEY: z.string(),
 });
 
 // Validate process.env against the schema

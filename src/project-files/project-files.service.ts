@@ -6,10 +6,23 @@ export async function copyProjectFilesFromR2ToSandbox(
 	projectId: string,
 	sandbox: Sandbox,
 ) {
-	const gzippedFilePathOnR2 = `r2:reeloly/${env.ENVIRONMENT}/users/${userId}/projects/${projectId}/project.tar.gz`;
+	let gzippedFilePathOnR2 = `r2:reeloly/${env.ENVIRONMENT}/users/${userId}/projects/${projectId}/project.tar.gz`;
+	const projectFilesCheck = await sandbox.commands.run(
+		`rclone lsf ${gzippedFilePathOnR2} | grep -q 'project.tar.gz' || echo "user project.tar.gz not found"`,
+	);
+	if (
+		projectFilesCheck.stdout.trim().includes("user project.tar.gz not found")
+	) {
+		console.info({
+			message: "Project files not found in r2, copying from backup",
+			projectFilesCheck,
+		});
+		gzippedFilePathOnR2 = `r2:reeloly/${env.ENVIRONMENT}/project.tar.gz`;
+	}
+
 	const gzippedFilePathOnSandbox = `/home/user/project.tar.gz`;
 	const result = await sandbox.commands.run(
-		`rclone lsf ${gzippedFilePathOnR2} && rclone copyto ${gzippedFilePathOnR2} ${gzippedFilePathOnSandbox} || echo 'Failed to sync project files from r2 to sandbox'`,
+		`rclone copyto ${gzippedFilePathOnR2} ${gzippedFilePathOnSandbox} || echo 'Failed to sync project files from r2 to sandbox'`,
 	);
 	if (
 		result.stdout

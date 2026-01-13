@@ -21,6 +21,7 @@ export interface AgentMessageEndEvent {
 
 export interface AgentAskUserQuestionEvent {
 	type: "agent.ask.user.question";
+	toolUseId: string;
 	questions: AskUserQuestion["questions"];
 }
 
@@ -41,3 +42,15 @@ export const askUserQuestionSchema = z.object({
 });
 
 export type AskUserQuestion = z.infer<typeof askUserQuestionSchema>;
+
+export const todoWriteSchema = z.object({
+	todos: z.array(
+		z.object({
+			content: z.string(),
+			status: z.enum(["pending", "in_progress", "completed"]),
+			activeForm: z.string(),
+		}),
+	),
+});
+
+export type TodoWrite = z.infer<typeof todoWriteSchema>;

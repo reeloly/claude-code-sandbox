@@ -3,7 +3,11 @@ import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import Sandbox from "@e2b/code-interpreter";
 import invariant from "tiny-invariant";
 import { copyProjectFilesFromSandboxToR2 } from "@/project-files/project-files.service";
-import { askUserQuestionSchema } from "./messages.type";
+import {
+	askUserQuestionSchema,
+	type TodoWrite,
+	todoWriteSchema,
+} from "./messages.type";
 import { ANSWERS_DIR, type SseEventSender } from "./messages.utils";
 
 export async function createMessage({
@@ -41,9 +45,8 @@ export async function createMessage({
 	const sandbox = await Sandbox.connect(sandboxes[0].sandboxId);
 
 	let buffer = "";
-	let todos: any[] = [];
 
-	const displayProgress = () => {
+	const displayProgress = (todos: TodoWrite["todos"]) => {
 		if (todos.length === 0) return;
 
 		// const completed = todos.filter((t) => t.status === "completed").length;
@@ -67,6 +70,7 @@ export async function createMessage({
 		} catch (error) {
 			console.error({
 				message: "Failed to display progress",
+				todos,
 				error: error instanceof Error ? error.message : "Unknown error",
 			});
 		}
@@ -115,14 +119,16 @@ export async function createMessage({
 			for (const block of jsonMessage.message.content) {
 				if (block.type === "tool_use") {
 					if (block.name === "TodoWrite") {
-						todos = (block.input as any[]) ?? [];
-						displayProgress();
+						const { todos } = todoWriteSchema.parse(block.input);
+						displayProgress(todos);
 					} else if (block.name === "AskUserQuestion") {
+						console.log({ message: "messages.service AskUserQuestion", block });
 						const { questions } = askUserQuestionSchema.parse(block.input);
 						await sender.sendEvent({
 							id: crypto.randomUUID(),
 							message: {
 								type: "agent.ask.user.question",
+								toolUseId: block.id,
 								questions,
 							},
 						});
@@ -195,7 +201,7 @@ export async function createMessage({
 		await sandbox.commands.run(
 			`cd /home/user/reeloly/reeloly-agent && TASK_INPUT='${escapedMessage}' ${taskImagesEnv} bun run start --continue --cwd /home/user/app`,
 			{
-				timeoutMs: 120_000,
+				timeoutMs: 0, // Disable timeout - agent operations can take a long time
 				onStdout: async (rawString) => {
 					buffer += rawString;
 					const lines = buffer.split("\n");
@@ -272,7 +278,7 @@ export async function answerUserQuestion({
 	const sandbox = await Sandbox.connect(sandboxes[0].sandboxId);
 
 	await sandbox.commands.run(
-		`echo '${JSON.stringify({ answers })}' > ${ANSWERS_DIR}/${toolUseId}.json`,
+		`mkdir -p ${ANSWERS_DIR} && echo '${JSON.stringify({ answers })}' > ${ANSWERS_DIR}/${toolUseId}.json`,
 		{
 			timeoutMs: 120_000,
 		},
